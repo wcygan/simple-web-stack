@@ -1,0 +1,14 @@
+# See https://github.com/nektos/act#configuration for more options
+# This basic file helps act select a default image.
+
+# For Linux runners - using a valid image that exists
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# For macOS runners (often needs specific architecture for Docker):
+# -P macos-latest=nektos/act-environments-macos:latest
+
+# Container architecture for Apple Silicon Macs
+--container-architecture linux/amd64
+
+# You can also specify a default image for all jobs if not specified in workflow:
+# --default-image nektos/act-environments-ubuntu:latest 

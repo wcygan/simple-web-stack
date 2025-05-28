@@ -1,6 +1,12 @@
 {
     "tasks": {
         "up": "docker compose up -d --build",
-        "down": "docker compose down"
+        "down": "docker compose down",
+        "ci": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net scripts/run-ci.ts"
+    },
+    "imports": {
+        "@std/cli/parse-args": "jsr:@std/cli@^0.224.0/parse-args",
+        "@std/fmt/colors": "jsr:@std/fmt@^0.224.0/colors",
+        "@std/fs/ensure-dir": "jsr:@std/fs@^0.224.0/ensure-dir"
     }
 }

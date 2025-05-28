@@ -1,0 +1,12 @@
+# deny.toml
+[licenses]
+unlicensed = "deny"
+allow = ["MIT", "Apache-2.0", "BSD-3-Clause"]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[advisories]
+vulnerability = "deny"
+unmaintained = "warn" 

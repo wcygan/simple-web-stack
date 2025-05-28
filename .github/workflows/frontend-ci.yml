@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'frontend/**' # Relative to simple-web-stack root
   pull_request:
     paths:
       - 'frontend/**' # Relative to simple-web-stack root

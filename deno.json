@@ -2,7 +2,8 @@
     "tasks": {
         "up": "docker compose up -d --build",
         "down": "docker compose down",
-        "ci": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net scripts/run-ci.ts"
+        "ci": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net scripts/run-ci.ts",
+        "test:backend": "cd backend && cargo test && ./integration_test.ts"
     },
     "imports": {
         "@std/cli/parse-args": "jsr:@std/cli@^0.224.0/parse-args",

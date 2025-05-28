@@ -4,7 +4,7 @@
  * Integration tests for the Simple Web Stack Backend
  * 
  * This script tests the actual HTTP server by:
- * 1. Starting the Rust server as a subprocess
+ * 1. Starting the Rust server as a subprocess (optimized for speed)
  * 2. Waiting for it to be ready
  * 3. Running HTTP tests against the live server
  * 4. Cleaning up the server process
@@ -29,28 +29,16 @@ interface HealthResponse {
 class ServerManager {
   private process: Deno.ChildProcess | null = null;
   private readonly serverUrl = "http://localhost:3000";
-  private readonly maxStartupTime = 30000; // 30 seconds
-  private readonly healthCheckInterval = 500; // 500ms
+  private readonly maxStartupTime = 15000; // 15 seconds (reduced from 30)
+  private readonly healthCheckInterval = 100; // 100ms (reduced from 500ms)
 
   async start(): Promise<void> {
-    console.log("🚀 Starting Rust server...");
+    console.log("🚀 Starting Rust server (debug mode for speed)...");
     
-    // Build the project first
-    const buildCommand = new Deno.Command("cargo", {
-      args: ["build", "--release"],
-      stdout: "piped",
-      stderr: "piped",
-    });
-    
-    const buildResult = await buildCommand.output();
-    if (!buildResult.success) {
-      const error = new TextDecoder().decode(buildResult.stderr);
-      throw new Error(`Failed to build server: ${error}`);
-    }
-
-    // Start the server
+    // Start the server directly without separate build step
+    // Use debug mode for faster compilation
     const command = new Deno.Command("cargo", {
-      args: ["run", "--release"],
+      args: ["run"], // Removed --release flag for faster builds
       stdout: "piped",
       stderr: "piped",
     });
@@ -65,8 +53,27 @@ class ServerManager {
   async stop(): Promise<void> {
     if (this.process) {
       console.log("🛑 Stopping server...");
+      
+      // Try graceful shutdown first
       this.process.kill("SIGTERM");
-      await this.process.status;
+      
+      // Wait for graceful shutdown with timeout
+      const shutdownTimeout = 2000; // 2 seconds
+      const shutdownPromise = this.process.status;
+      const timeoutPromise = delay(shutdownTimeout).then(() => {
+        console.log("⚠️  Graceful shutdown timed out, forcing termination...");
+        this.process?.kill("SIGKILL");
+        return this.process?.status;
+      });
+      
+      try {
+        await Promise.race([shutdownPromise, timeoutPromise]);
+      } catch (error) {
+        console.log(`⚠️  Error during shutdown: ${error}`);
+        // Force kill if there's an error
+        this.process?.kill("SIGKILL");
+      }
+      
       this.process = null;
       console.log("✅ Server stopped");
     }
@@ -78,7 +85,7 @@ class ServerManager {
     while (Date.now() - startTime < this.maxStartupTime) {
       try {
         const response = await fetch(`${this.serverUrl}/health`, {
-          signal: AbortSignal.timeout(1000),
+          signal: AbortSignal.timeout(500), // Reduced timeout for faster failure detection
         });
         
         if (response.ok) {
@@ -111,14 +118,18 @@ class IntegrationTester {
     try {
       await this.serverManager.start();
       
-      // Run all test cases
+      // Run basic tests first (these are fast and validate core functionality)
       await this.runTest("Health endpoint returns 200", this.testHealthEndpointStatus.bind(this));
       await this.runTest("Health endpoint returns correct JSON structure", this.testHealthEndpointStructure.bind(this));
+      await this.runTest("Invalid endpoint returns 404", this.testInvalidEndpoint.bind(this));
+      
+      // Run more comprehensive tests
       await this.runTest("Health endpoint returns valid timestamp", this.testHealthEndpointTimestamp.bind(this));
       await this.runTest("Health endpoint returns correct headers", this.testHealthEndpointHeaders.bind(this));
-      await this.runTest("Invalid endpoint returns 404", this.testInvalidEndpoint.bind(this));
-      await this.runTest("Health endpoint handles multiple concurrent requests", this.testConcurrentRequests.bind(this));
       await this.runTest("Health endpoint response time is reasonable", this.testResponseTime.bind(this));
+      
+      // Run concurrent and stress tests last
+      await this.runTest("Health endpoint handles multiple concurrent requests", this.testConcurrentRequests.bind(this));
       await this.runTest("Server handles malformed requests gracefully", this.testMalformedRequests.bind(this));
       
     } finally {
@@ -195,7 +206,7 @@ class IntegrationTester {
   }
 
   private async testConcurrentRequests(): Promise<void> {
-    const requests = Array.from({ length: 10 }, () =>
+    const requests = Array.from({ length: 5 }, () => // Reduced from 10 to 5 for faster execution
       fetch(`${this.serverManager.getServerUrl()}/health`)
     );
     

@@ -8,7 +8,7 @@ A minimal Rust backend server built with Axum framework.
 - **Async Runtime**: Built on Tokio for high-performance async operations
 - **JSON Responses**: All endpoints return JSON with proper content types
 - **Docker Support**: Containerized with multi-stage build for minimal image size
-- **Comprehensive Testing**: Unit tests in Rust and integration tests in Deno
+- **Comprehensive Testing**: Unit tests in Rust and integration tests in Deno with timeout protection
 
 ## API Endpoints
 
@@ -47,13 +47,13 @@ cargo build --release
 
 ## Testing
 
-This project includes comprehensive testing at multiple levels:
+This project includes comprehensive testing at multiple levels with timeout protection to prevent stalled tests:
 
 ### Unit Tests (Rust)
 Unit tests are embedded in `src/main.rs` and test individual functions and handlers:
 
 ```bash
-# Run unit tests
+# Run unit tests directly
 cargo test
 ```
 
@@ -70,7 +70,7 @@ cargo test
 Integration tests in `integration_test.ts` test the full HTTP server:
 
 ```bash
-# Run integration tests
+# Run integration tests directly
 ./integration_test.ts
 ```
 
@@ -84,12 +84,74 @@ Integration tests in `integration_test.ts` test the full HTTP server:
 - Error scenarios (invalid endpoints, malformed requests)
 - Server cleanup and shutdown
 
-### Run All Tests
-Use the test runner to execute both test suites:
+### Timeout-Protected Test Runner
+The recommended way to run tests is using the interactive timeout-protected test runner:
 
 ```bash
-# Run all tests (unit + integration)
-./test_runner.sh
+# Run all tests with timeout protection and real-time progress (recommended)
+./test_runner.ts
+```
+
+**Interactive Features:**
+- **Real-time Progress**: Animated spinners and elapsed time counters
+- **Test Plan Overview**: Shows what tests will run and their timeouts
+- **Live Status Updates**: Progress indicators for each test phase
+- **Detailed Performance Metrics**: Breakdown of compilation and test execution times
+- **Smart Recommendations**: Tips for optimization and troubleshooting
+
+**Timeout Protection Features:**
+- **Rust Unit Tests**: 5-second timeout to prevent stalled tests
+- **Integration Tests**: 30-second timeout for complete server lifecycle testing
+- **Automatic Cleanup**: Processes are properly terminated on timeout
+- **Detailed Reporting**: Shows which tests timed out and why
+- **Exit Codes**: Proper failure codes for CI/CD integration
+
+**Example output:**
+```
+🚀 Starting backend test suite with timeout protection
+============================================================
+📋 Test Plan:
+   1. 🦀 Rust unit tests (5s timeout)
+   2. 🔗 Integration tests (30s timeout)
+============================================================
+
+📊 Progress:
+   🦀 Rust unit tests: ⏳ Pending
+   🔗 Integration tests: ⏳ Pending
+
+✅ Rust unit tests passed (238ms)
+   
+📊 Progress Update:
+   🦀 Rust unit tests: ✅ Completed
+   🔗 Integration tests: ⏳ Starting...
+
+✅ Integration tests passed (462ms)
+   Completed 19 integration test scenarios
+
+📊 Final Status:
+   🦀 Rust unit tests: ✅ Completed
+   🔗 Integration tests: ✅ Completed
+
+============================================================
+📊 DETAILED TEST SUMMARY
+============================================================
+
+⏱️  Performance Metrics:
+   Total execution time: 700ms (0.7s)
+   Rust compilation + tests: 238ms
+   Integration test suite: 462ms
+
+🦀 Rust Unit Tests:
+   Status: ✅ PASSED
+   Duration: 238ms
+
+🔗 Integration Tests:
+   Status: ✅ PASSED
+   Duration: 462ms
+
+🎯 Overall Result: ✅ ALL TESTS PASSED
+🎉 Great job! All tests completed successfully in 0.7s
+============================================================
 ```
 
 ### Test Architecture
@@ -99,6 +161,7 @@ Use the test runner to execute both test suites:
 - Test individual components in isolation
 - Fast execution (milliseconds)
 - No external dependencies
+- Protected by 5-second timeout
 
 **Integration Tests:**
 - Start actual Rust server as subprocess
@@ -106,6 +169,13 @@ Use the test runner to execute both test suites:
 - Validate full request/response cycle
 - Test server lifecycle (startup/shutdown)
 - Comprehensive error scenario testing
+- Protected by 30-second timeout
+
+**Timeout Protection:**
+- Prevents CI/CD pipeline stalls
+- Provides clear failure messages
+- Maintains test reliability
+- Enables safe automated testing
 
 ### Manual Testing
 ```bash

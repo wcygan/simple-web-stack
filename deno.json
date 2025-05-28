@@ -1,6 +1,6 @@
 {
     "tasks": {
-        "up": "echo \"Up\"",
-        "down": "echo \"Down\""
+        "up": "docker compose up -d --build",
+        "down": "docker compose down"
     }
 }

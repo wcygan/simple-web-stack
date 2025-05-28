@@ -1,0 +1,88 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Simple Web Stack Architecture Guide
+
+## Tech Stack Overview
+
+This is a full-stack web application with clear separation between frontend, backend, and infrastructure:
+
+- **Frontend**: Deno Fresh v2.0 + Preact + Tailwind CSS (Port 8000)
+- **Backend**: Rust Axum + Tokio async runtime (Port 3000)
+- **Database**: MySQL + sqlx (planned, not yet implemented)
+- **Cache**: DragonflyDB + redis-rs (planned, not yet implemented)
+- **Infrastructure**: Docker Compose + GitHub Actions CI/CD
+
+## Project Structure
+
+### Frontend ([frontend/](mdc:frontend))
+- **Entry Point**: [main.ts](mdc:frontend/main.ts) - Fresh app initialization
+- **Routes**: [routes/](mdc:frontend/routes) - File-based routing with [index.tsx](mdc:frontend/routes/index.tsx) as homepage
+- **Islands**: [islands/](mdc:frontend/islands) - Interactive components (e.g., [Counter.tsx](mdc:frontend/islands/Counter.tsx))
+- **Components**: [components/](mdc:frontend/components) - Reusable UI components (e.g., [Button.tsx](mdc:frontend/components/Button.tsx))
+- **Config**: [deno.json](mdc:frontend/deno.json) - Fresh configuration and dependencies
+
+### Backend ([backend/](mdc:backend))
+- **Entry Point**: [main.rs](mdc:backend/src/main.rs) - Server startup and configuration
+- **App Factory**: [lib.rs](mdc:backend/src/lib.rs) - Router creation for reuse in tests
+- **Handlers**: [handlers/](mdc:backend/src/handlers) - HTTP request handlers (currently [health.rs](mdc:backend/src/handlers/health.rs))
+- **Config**: [config/mod.rs](mdc:backend/src/config/mod.rs) - Application configuration structs
+- **Dependencies**: [Cargo.toml](mdc:backend/Cargo.toml) - Rust dependencies and project metadata
+
+### Infrastructure
+- **Docker**: [docker-compose.yml](mdc:docker-compose.yml) - Service orchestration
+- **Tasks**: [deno.json](mdc:deno.json) - Project-level tasks and scripts
+- **CI/CD**: [scripts/run-ci.ts](mdc:scripts/run-ci.ts) - Local CI testing with act
+
+## Development Patterns
+
+### Backend Patterns
+- **Async-first**: All handlers use async/await with Tokio runtime
+- **JSON APIs**: Structured responses using serde serialization
+- **Error Handling**: Proper HTTP status codes and error responses
+- **Testing**: Unit tests embedded in source + integration tests in [integration_test.ts](mdc:backend/integration_test.ts)
+- **Instrumentation**: Structured logging with tracing crate
+
+### Frontend Patterns
+- **Islands Architecture**: Interactive components in [islands/](mdc:frontend/islands) with server-side rendering
+- **Signals**: State management using Preact signals for reactivity
+- **File-based Routing**: Routes automatically generated from [routes/](mdc:frontend/routes) directory
+- **API Integration**: Backend communication through [routes/api/](mdc:frontend/routes/api) handlers
+
+### Development Workflow
+- **Local Development**: `deno task up` - Starts all services with live reloading
+- **Testing**: `deno task test:backend` - Runs comprehensive test suite
+- **CI/CD**: `deno task ci` - Local GitHub Actions testing with act
+
+## Key Integration Points
+
+1. **Frontend ↔ Backend**: HTTP API calls from Fresh routes/islands to Axum endpoints
+2. **Backend ↔ Database**: sqlx for async MySQL operations (to be implemented)
+3. **Docker Services**: Containerized services with development volumes
+4. **Data Flow**: Frontend signals → API calls → Database operations → JSON responses → UI updates
+
+## Current Implementation Status
+
+**✅ Implemented:**
+- Basic Axum server with health check endpoint
+- Fresh frontend with example components
+- Docker development environment
+- Comprehensive testing infrastructure
+- CI/CD pipeline
+
+**🚧 Todo App Requirements:**
+- MySQL database service and schema
+- CRUD API endpoints for todos
+- Todo UI components and state management
+- Database migrations with sqlx
+- API integration between frontend and backend
+
+## Development Guidelines
+
+- **Backend**: Follow the handler pattern in [handlers/](mdc:backend/src/handlers) for new endpoints
+- **Frontend**: Use islands for interactivity, components for reusable UI
+- **Testing**: Add unit tests in Rust files, integration tests in TypeScript
+- **Configuration**: Extend [config/mod.rs](mdc:backend/src/config/mod.rs) for new settings
+- **Docker**: Update [docker-compose.yml](mdc:docker-compose.yml) for new services

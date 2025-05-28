@@ -1,6 +1,6 @@
 use axum::body::Body;
 use axum::http::Request;
-use backend::create_app; // Assuming lib.rs exposes create_app
+use backend::create_test_router;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tower::ServiceExt;
 
@@ -9,7 +9,7 @@ fn health_check_benchmark(c: &mut Criterion) {
 
     c.bench_function("health_check", |b| {
         b.to_async(&rt).iter(|| async {
-            let app = create_app();
+            let app = create_test_router();
             let request = Request::builder()
                 .uri("/health")
                 .body(Body::empty())

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone, PartialEq, Eq)]
 pub struct Todo {
     pub id: Uuid,
     pub title: String,
@@ -13,7 +13,7 @@ pub struct Todo {
 }
 
 impl Todo {
-    pub fn new(title: String) -> Self {
+    #[must_use] pub fn new(title: String) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),

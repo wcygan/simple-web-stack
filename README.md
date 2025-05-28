@@ -6,3 +6,13 @@
 | Backend | [Axum](https://docs.rs/axum/latest/axum/) |
 | Database | [MySQL](https://www.mysql.com/) + [sqlx](https://github.com/launchbadge/sqlx) |
 | Cache | [DragonflyDB](https://www.dragonflydb.io/) + [redis-rs](https://github.com/redis-rs/redis-rs) |
+
+## Quick Start
+
+Deno Tasks:
+
+| Task | Description |
+|---|---|
+| `up` | Start the application |
+| `down` | Stop the application |
+

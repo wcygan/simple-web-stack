@@ -1,0 +1,6 @@
+{
+    "tasks": {
+        "up": "echo \"Up\"",
+        "down": "echo \"Down\""
+    }
+}

@@ -1,3 +1,4 @@
+use config;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -25,6 +26,15 @@ pub struct DatabaseConfig {
     pub min_connections: u32,
     pub connect_timeout: u64,
     pub idle_timeout: u64,
+}
+
+impl AppConfig {
+    pub fn from_env() -> Result<Self, config::ConfigError> {
+        let config = config::Config::builder()
+            .add_source(config::Environment::default().separator("__"))
+            .build()?;
+        config.try_deserialize()
+    }
 }
 
 // Basic default configuration for now

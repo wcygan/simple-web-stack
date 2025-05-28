@@ -1,5 +1,13 @@
+# See https://doc.rust-lang.org/clippy/usage.html#configuration-files for configuration options
+
+# Allow single character lifetime names like 'a, 'b, etc.
+# single-char-lifetime-names = false # This option is deprecated or renamed
+# Allow trivial casts like u32 as u64
+# trivial-casts = false # This option is deprecated or renamed
+
+# Allow pedantic lints for enum variant names that are not in SCREAMING_SNAKE_CASE
+enum-variant-name-threshold = 0
+
 cognitive-complexity-threshold = 30
 too-many-arguments-threshold = 7
-type-complexity-threshold = 250
-single-char-lifetime-names = false
-trivial-casts = false 
+type-complexity-threshold = 250 

@@ -16,8 +16,8 @@ fn health_check_benchmark(c: &mut Criterion) {
                 .unwrap();
 
             // Use black_box to prevent the compiler from optimizing away the call
-            black_box(app.oneshot(request).await.unwrap())
-        })
+            black_box(app.oneshot(request).await.unwrap());
+        });
     });
 }
 

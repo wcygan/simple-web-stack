@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create the application router
-    let app = db_pool.map_or_else(backend::create_test_router, |pool| create_router(pool));
+    let app = db_pool.map_or_else(backend::create_test_router, create_router);
 
     // Define the server address
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

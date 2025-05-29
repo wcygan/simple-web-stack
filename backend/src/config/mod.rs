@@ -56,12 +56,14 @@ pub struct DatabaseConfig {
 }
 
 impl AppConfig {
-    #[must_use] pub fn parse_args() -> Self {
+    #[must_use]
+    pub fn parse_args() -> Self {
         Self::parse()
     }
 
     /// Get server configuration
-    #[must_use] pub fn server(&self) -> ServerConfig {
+    #[must_use]
+    pub fn server(&self) -> ServerConfig {
         ServerConfig {
             host: self.host.clone(),
             port: self.port,
@@ -69,14 +71,16 @@ impl AppConfig {
     }
 
     /// Get logging configuration
-    #[must_use] pub fn logging(&self) -> LoggingConfig {
+    #[must_use]
+    pub fn logging(&self) -> LoggingConfig {
         LoggingConfig {
             level: self.log_level.clone(),
         }
     }
 
     /// Get database configuration if database is enabled
-    #[must_use] pub fn database(&self) -> Option<DatabaseConfig> {
+    #[must_use]
+    pub fn database(&self) -> Option<DatabaseConfig> {
         if self.skip_database {
             return None;
         }
@@ -91,7 +95,8 @@ impl AppConfig {
     }
 
     /// Get database URL with fallback for development
-    #[must_use] pub fn get_database_url(&self) -> String {
+    #[must_use]
+    pub fn get_database_url(&self) -> String {
         self.database_url
             .clone()
             .unwrap_or_else(|| "mysql://todo_user:todo_password@localhost:3306/todo_db".to_string())

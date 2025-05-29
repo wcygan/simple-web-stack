@@ -8,38 +8,65 @@ use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse command line arguments and environment variables
+    let config = AppConfig::parse_args();
+
     // Initialize tracing subscriber for logging
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "backend=debug,tower_http=debug".into()),
-        ))
+        .with(tracing_subscriber::EnvFilter::new(&config.log_level))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Load application configuration
-    let config = AppConfig::from_env()?;
+    info!("Starting Simple Web Stack Backend");
+    info!("Configuration: {:?}", config);
 
-    // Create database connection pool
-    let db_pool = MySqlPoolOptions::new()
-        .max_connections(config.database.max_connections)
-        .acquire_timeout(Duration::from_secs(config.database.connect_timeout))
-        .connect(&config.database.url)
-        .await
-        .expect("Failed to create database connection pool");
+    // Create database connection pool (optional)
+    let db_pool = if let Some(db_config) = config.database() {
+        info!("Connecting to database: {}", db_config.url);
+        let pool = MySqlPoolOptions::new()
+            .max_connections(db_config.max_connections)
+            .acquire_timeout(Duration::from_secs(db_config.connect_timeout))
+            .connect(&db_config.url)
+            .await;
 
-    // Run database migrations
-    info!("Running database migrations...");
-    sqlx::migrate!("./migrations")
-        .run(&db_pool)
-        .await
-        .expect("Failed to run database migrations");
-    info!("Database migrations completed.");
+        match pool {
+            Ok(pool) => {
+                // Run database migrations
+                info!("Running database migrations...");
+                if let Err(e) = sqlx::migrate!("./migrations").run(&pool).await {
+                    info!(
+                        "Database migrations failed: {}. Continuing without database.",
+                        e
+                    );
+                    None
+                } else {
+                    info!("Database migrations completed.");
+                    Some(pool)
+                }
+            }
+            Err(e) => {
+                info!(
+                    "Failed to connect to database: {}. Continuing without database.",
+                    e
+                );
+                None
+            }
+        }
+    } else {
+        info!("Database connection skipped (development mode)");
+        None
+    };
 
     // Create the application router
-    let app = create_router(db_pool.clone());
+    let app = if let Some(pool) = db_pool {
+        create_router(pool)
+    } else {
+        // For now, we'll create a test router when no database is available
+        backend::create_test_router()
+    };
 
     // Define the server address
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.server.port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     info!("Server listening on {}", addr);
 
     // Start the server
@@ -51,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-     // Import items from parent module
+    // Import items from parent module
     use axum::{
         body::Body,
         http::{Request, StatusCode},

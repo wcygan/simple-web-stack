@@ -1,36 +1,29 @@
-# Stage 1: Build the Rust application
-FROM rust:latest AS builder
+# Stage 1: Install cargo-chef and prepare the build recipe
+FROM rust:latest AS chef
+WORKDIR /app
+RUN cargo install cargo-chef
 
-WORKDIR /usr/src/app
+# Stage 2: Create a recipe for dependencies
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Copy the Cargo.toml and Cargo.lock files
-COPY Cargo.toml Cargo.lock ./
+# Stage 3: Build dependencies
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --recipe-path recipe.json
 
-# Build dependencies separately to leverage Docker cache
-RUN mkdir src \
-    && echo "fn main() {println!(\"Dummy main for dep build\")}" > src/main.rs \
-    && cargo build --release \
-    && rm -rf src
+# Copy application code and build the application
+COPY . .
+# Ensure the target directory from the cook stage is available for the final build
+# Build the application binary
+RUN cargo build --bin backend
 
-# Clean previous build artifacts before copying new source
-RUN rm -rf target
-
-# Copy the rest of the source code
-COPY src ./src
-
-# Build the application
-RUN cargo build --release
-
-# Stage 2: Create a minimal runtime image
+# Stage 4: Create a minimal runtime image
 FROM debian:bookworm-slim AS runtime
-
 WORKDIR /usr/local/bin
-
 # Copy the compiled binary from the builder stage
-COPY --from=builder /usr/src/app/target/release/backend .
-
-# Expose the port the backend will listen on (assuming 3000)
+COPY --from=builder /app/target/debug/backend .
 EXPOSE 3000
-
-# Run the backend application
-CMD ["./backend"] 
+CMD ["./backend"]

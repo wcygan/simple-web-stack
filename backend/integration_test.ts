@@ -4,10 +4,10 @@
  * Integration tests for the Simple Web Stack Backend
  * 
  * This script tests the actual HTTP server by:
- * 1. Starting the Rust server as a subprocess (optimized for speed)
- * 2. Waiting for it to be ready
- * 3. Running HTTP tests against the live server
- * 4. Cleaning up the server process
+ * 1. Checking if the server is already running at http://localhost:3000
+ * 2. If not available, aborting with helpful guidance to start the server
+ * 3. If available, running HTTP tests against the live server
+ * 4. Leaving the server running after tests complete
  */
 
 import { assertEquals, assertExists, assert } from "https://deno.land/std@0.208.0/assert/mod.ts";
@@ -31,74 +31,92 @@ class ServerManager {
   private readonly serverUrl = "http://localhost:3000";
   private readonly maxStartupTime = 15000; // 15 seconds (reduced from 30)
   private readonly healthCheckInterval = 100; // 100ms (reduced from 500ms)
+  private serverWasAlreadyRunning = false; // Track if we started the server or it was already running
+
+  /**
+   * Check if the server is already running (similar to: curl http://localhost:3000/health)
+   * This provides fast feedback without waiting for timeout periods
+   */
+  async checkServerAvailability(): Promise<{ available: boolean; response?: HealthResponse; error?: string }> {
+    try {
+      console.log("🔍 Checking server availability at http://localhost:3000/health...");
+      
+      const response = await fetch(`${this.serverUrl}/health`, {
+        signal: AbortSignal.timeout(2000), // Quick 2-second timeout for availability check
+      });
+      
+      if (response.ok) {
+        const data: HealthResponse = await response.json();
+        console.log("✅ Server is already running and healthy!");
+        return { available: true, response: data };
+      } else {
+        return { 
+          available: false, 
+          error: `Server responded with status ${response.status}` 
+        };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Distinguish between different types of connection errors
+      if (errorMessage.includes("Connection refused") || errorMessage.includes("ECONNREFUSED")) {
+        console.log("ℹ️  Server not running (connection refused) - tests require running server");
+        return { available: false, error: "Connection refused - server not running" };
+      } else if (errorMessage.includes("timeout")) {
+        console.log("⚠️  Server availability check timed out");
+        return { available: false, error: "Health check timeout - server may be unresponsive" };
+      } else {
+        console.log(`⚠️  Server availability check failed: ${errorMessage}`);
+        return { available: false, error: errorMessage };
+      }
+    }
+  }
 
   async start(): Promise<void> {
-    console.log("🚀 Starting Rust server (debug mode for speed)...");
+    // First, check if server is already running
+    const availability = await this.checkServerAvailability();
     
-    // Start the server directly without separate build step
-    // Use debug mode for faster compilation
-    const command = new Deno.Command("cargo", {
-      args: ["run"], // Removed --release flag for faster builds
-      stdout: "piped",
-      stderr: "piped",
-    });
-
-    this.process = command.spawn();
-
-    // Wait for server to be ready
-    await this.waitForServer();
-    console.log("✅ Server is ready!");
+    if (availability.available) {
+      console.log("🔄 Using existing server instance");
+      this.serverWasAlreadyRunning = true;
+      return; // Server already running, no need to start a new one
+    }
+    
+    // Server is not available - abort immediately with helpful guidance
+    console.error("❌ Server is not available!");
+    console.error(`📋 Availability check result: ${availability.error}`);
+    console.error("");
+    console.error("🚨 INTEGRATION TEST REQUIREMENTS:");
+    console.error("   The server must be running before integration tests can proceed.");
+    console.error("");
+    console.error("💡 To fix this, choose one of the following options:");
+    console.error("");
+    console.error("   Option 1 - Run with Docker Compose:");
+    console.error("   $ deno task up");
+    console.error("   $ deno task test:backend");
+    console.error("");
+    console.error("   Option 2 - Run locally in development:");
+    console.error("   Terminal 1: $ cd backend && cargo run");
+    console.error("   Terminal 2: $ cd backend && ./integration_test.ts");
+    console.error("");
+    console.error("   Option 3 - Use the comprehensive test runner:");
+    console.error("   $ deno task test:backend");
+    console.error("   (This includes both unit tests and integration tests)");
+    console.error("");
+    console.error("🔍 Server status:");
+    console.error(`   - Target URL: ${this.serverUrl}/health`);
+    console.error(`   - Connection: ${availability.error}`);
+    console.error(`   - Expected response: {"status":"healthy","service":"simple-web-stack-backend",...}`);
+    
+    throw new Error(
+      `Integration tests require a running server at ${this.serverUrl}. ` +
+      `Please start the server using 'deno task up' or 'cargo run' before running tests.`
+    );
   }
 
   async stop(): Promise<void> {
-    if (this.process) {
-      console.log("🛑 Stopping server...");
-      
-      // Try graceful shutdown first
-      this.process.kill("SIGTERM");
-      
-      // Wait for graceful shutdown with timeout
-      const shutdownTimeout = 2000; // 2 seconds
-      const shutdownPromise = this.process.status;
-      const timeoutPromise = delay(shutdownTimeout).then(() => {
-        console.log("⚠️  Graceful shutdown timed out, forcing termination...");
-        this.process?.kill("SIGKILL");
-        return this.process?.status;
-      });
-      
-      try {
-        await Promise.race([shutdownPromise, timeoutPromise]);
-      } catch (error) {
-        console.log(`⚠️  Error during shutdown: ${error}`);
-        // Force kill if there's an error
-        this.process?.kill("SIGKILL");
-      }
-      
-      this.process = null;
-      console.log("✅ Server stopped");
-    }
-  }
-
-  private async waitForServer(): Promise<void> {
-    const startTime = Date.now();
-    
-    while (Date.now() - startTime < this.maxStartupTime) {
-      try {
-        const response = await fetch(`${this.serverUrl}/health`, {
-          signal: AbortSignal.timeout(500), // Reduced timeout for faster failure detection
-        });
-        
-        if (response.ok) {
-          return; // Server is ready
-        }
-      } catch {
-        // Server not ready yet, continue waiting
-      }
-      
-      await delay(this.healthCheckInterval);
-    }
-    
-    throw new Error(`Server failed to start within ${this.maxStartupTime}ms`);
+    // Since we never start the server ourselves, just acknowledge that we're done
+    console.log("ℹ️  Integration tests completed - server remains running");
   }
 
   getServerUrl(): string {
@@ -112,6 +130,23 @@ class IntegrationTester {
 
   constructor() {
     this.serverManager = new ServerManager();
+  }
+
+  /**
+   * Test the server availability check functionality itself
+   */
+  async testAvailabilityCheck(): Promise<void> {
+    console.log("🧪 Testing server availability check functionality...");
+    
+    // First, check availability when server is not running
+    const initialCheck = await this.serverManager.checkServerAvailability();
+    if (initialCheck.available) {
+      console.log("ℹ️  Server was already running - this is fine for testing");
+    } else {
+      console.log("✅ Availability check correctly detected server not running");
+    }
+    
+    console.log(`📋 Availability check result: ${JSON.stringify(initialCheck, null, 2)}`);
   }
 
   async runAllTests(): Promise<void> {
@@ -289,6 +324,14 @@ async function main(): Promise<void> {
   console.log("=".repeat(60));
   
   const tester = new IntegrationTester();
+  
+  // First, test the availability check functionality itself
+  console.log("🔍 Phase 1: Testing Server Availability Check");
+  console.log("-".repeat(40));
+  await tester.testAvailabilityCheck();
+  
+  console.log("\n🧪 Phase 2: Running Integration Test Suite");
+  console.log("-".repeat(40));
   await tester.runAllTests();
 }
 

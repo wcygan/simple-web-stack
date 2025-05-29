@@ -30,6 +30,53 @@
             "type": "shell",
             "command": "deno task docker:ps",
             "problemMatcher": []
+        },
+        {
+            "label": "cargo: fmt",
+            "type": "shell",
+            "command": "cargo fmt",
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "cargo: clippy fix",
+            "type": "shell",
+            "command": "cargo clippy --fix --allow-dirty --allow-staged",
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": ["$rustc"]
+        },
+        {
+            "label": "cargo: format and lint",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "cargo: fmt",
+                "cargo: clippy fix"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
         }
     ]
 } 

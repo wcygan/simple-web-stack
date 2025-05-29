@@ -13,7 +13,8 @@ pub struct Todo {
 }
 
 impl Todo {
-    #[must_use] pub fn new(title: String) -> Self {
+    #[must_use]
+    pub fn new(title: String) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),

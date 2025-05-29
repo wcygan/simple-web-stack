@@ -1,7 +1,4 @@
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 use sqlx::MySqlPool;
 use tower_http::trace::TraceLayer;
 

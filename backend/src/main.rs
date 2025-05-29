@@ -58,12 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create the application router
-    let app = if let Some(pool) = db_pool {
-        create_router(pool)
-    } else {
-        // For now, we'll create a test router when no database is available
-        backend::create_test_router()
-    };
+    let app = db_pool.map_or_else(backend::create_test_router, |pool| create_router(pool));
 
     // Define the server address
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

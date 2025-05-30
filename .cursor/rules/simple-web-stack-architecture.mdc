@@ -5,30 +5,27 @@ alwaysApply: true
 ---
 # Simple Web Stack Architecture Guide
 
+## Application Overview
+
+This document outlines the requirements for a simple todo list application designed to help users manage their tasks effectively. The application will feature a frontend built with Deno Fresh for a fast and modern user interface, enabling users to view, add, edit, mark as complete, and delete tasks. The backend, powered by Axum and Rust, will provide a robust and efficient API for managing task data, including CRUD (Create, Read, Update, Delete) operations. All task information will be persistently stored in a MySQL database, with SQLx utilized for asynchronous, type-safe database interactions, ensuring data integrity and reliable task management. To ensure reliability and correctness, the application will undergo extensive unit and integration testing, leveraging Testcontainers (through testcontainers-rs) to manage and isolate external dependencies like the MySQL database during the testing phase, facilitating a consistent and dependable testing environment.
+
 ## Tech Stack Overview
 
 This is a full-stack web application with clear separation between frontend, backend, and infrastructure:
 
 - **Frontend**: Deno Fresh v2.0 + Preact + Tailwind CSS (Port 8000)
 - **Backend**: Rust Axum + Tokio async runtime (Port 3000)
-- **Database**: MySQL + sqlx (planned, not yet implemented)
-- **Cache**: DragonflyDB + redis-rs (planned, not yet implemented)
+- **Database**: MySQL + sqlx
 - **Infrastructure**: Docker Compose + GitHub Actions CI/CD
 
 ## Project Structure
 
 ### Frontend ([frontend/](mdc:frontend))
 - **Entry Point**: [main.ts](mdc:frontend/main.ts) - Fresh app initialization
-- **Routes**: [routes/](mdc:frontend/routes) - File-based routing with [index.tsx](mdc:frontend/routes/index.tsx) as homepage
-- **Islands**: [islands/](mdc:frontend/islands) - Interactive components (e.g., [Counter.tsx](mdc:frontend/islands/Counter.tsx))
-- **Components**: [components/](mdc:frontend/components) - Reusable UI components (e.g., [Button.tsx](mdc:frontend/components/Button.tsx))
 - **Config**: [deno.json](mdc:frontend/deno.json) - Fresh configuration and dependencies
 
 ### Backend ([backend/](mdc:backend))
 - **Entry Point**: [main.rs](mdc:backend/src/main.rs) - Server startup and configuration
-- **App Factory**: [lib.rs](mdc:backend/src/lib.rs) - Router creation for reuse in tests
-- **Handlers**: [handlers/](mdc:backend/src/handlers) - HTTP request handlers (currently [health.rs](mdc:backend/src/handlers/health.rs))
-- **Config**: [config/mod.rs](mdc:backend/src/config/mod.rs) - Application configuration structs
 - **Dependencies**: [Cargo.toml](mdc:backend/Cargo.toml) - Rust dependencies and project metadata
 
 ### Infrastructure
@@ -42,7 +39,7 @@ This is a full-stack web application with clear separation between frontend, bac
 - **Async-first**: All handlers use async/await with Tokio runtime
 - **JSON APIs**: Structured responses using serde serialization
 - **Error Handling**: Proper HTTP status codes and error responses
-- **Testing**: Unit tests embedded in source + integration tests in [integration_test.ts](mdc:backend/integration_test.ts)
+- **Testing**: Unit tests embedded in source + integration tests with TestContainers-rs
 - **Instrumentation**: Structured logging with tracing crate
 
 ### Frontend Patterns
@@ -59,30 +56,6 @@ This is a full-stack web application with clear separation between frontend, bac
 ## Key Integration Points
 
 1. **Frontend ↔ Backend**: HTTP API calls from Fresh routes/islands to Axum endpoints
-2. **Backend ↔ Database**: sqlx for async MySQL operations (to be implemented)
+2. **Backend ↔ Database**: sqlx for async MySQL operations
 3. **Docker Services**: Containerized services with development volumes
 4. **Data Flow**: Frontend signals → API calls → Database operations → JSON responses → UI updates
-
-## Current Implementation Status
-
-**✅ Implemented:**
-- Basic Axum server with health check endpoint
-- Fresh frontend with example components
-- Docker development environment
-- Comprehensive testing infrastructure
-- CI/CD pipeline
-
-**🚧 Todo App Requirements:**
-- MySQL database service and schema
-- CRUD API endpoints for todos
-- Todo UI components and state management
-- Database migrations with sqlx
-- API integration between frontend and backend
-
-## Development Guidelines
-
-- **Backend**: Follow the handler pattern in [handlers/](mdc:backend/src/handlers) for new endpoints
-- **Frontend**: Use islands for interactivity, components for reusable UI
-- **Testing**: Add unit tests in Rust files, integration tests in TypeScript
-- **Configuration**: Extend [config/mod.rs](mdc:backend/src/config/mod.rs) for new settings
-- **Docker**: Update [docker-compose.yml](mdc:docker-compose.yml) for new services

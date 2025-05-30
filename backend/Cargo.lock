@@ -191,6 +191,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenvy",
+ "futures",
  "once_cell",
  "reqwest",
  "serde",

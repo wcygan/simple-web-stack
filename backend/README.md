@@ -315,6 +315,53 @@ Based on research from [QA Wolf](https://www.qawolf.com/blog/the-challenges-and-
 - [QA Wolf: Parallel Testing Challenges](https://www.qawolf.com/blog/the-challenges-and-rewards-of-full-test-parallelization)
 - [TestNG Parallel Testing Guide](https://medium.com/@abhaykhs/guide-to-running-parallel-test-cases-in-testng-f095c38856ab)
 
+## Performance Testing Strategy
+
+### Resource-Intensive Test Isolation
+
+Performance tests (`tests/tasks_performance.rs`) are resource-intensive and require special handling according to our **parallel-testing-database-strategy**:
+
+**🔥 Problem**: Performance tests create hundreds/thousands of database operations and can exhaust connection pools when run in parallel
+
+**✅ Solution**: Dedicated performance test execution with sequential isolation
+
+### Usage
+
+```bash
+# Run performance tests separately (recommended)
+deno task test:backend:performance
+
+# Run all tests optimally (performance tests run last, sequentially)
+deno task test:backend
+
+# Run non-performance integration tests
+deno task test:backend:integration
+```
+
+### Test Execution Strategy
+
+| Test Type | Execution Mode | Resource Usage | Typical Runtime |
+|-----------|---------------|----------------|-----------------|
+| Unit Tests | Parallel (8 cores) | Low | ~1s |
+| Integration Tests | Sequential | Moderate | ~24s |
+| **Performance Tests** | **Sequential (forced)** | **High** | **~55s** |
+
+### Performance Test Characteristics
+
+- **Bulk Operations**: 1000+ task creation/deletion cycles
+- **Sustained Load**: 30-second continuous request streams  
+- **Memory Stress**: Multiple CRUD cycles to test resource cleanup
+- **Response Time Analysis**: Statistical performance measurements
+
+### Implementation Details
+
+- Performance tests are **automatically excluded** from regular integration test runs
+- **RUST_TEST_THREADS=1** is enforced for performance tests regardless of settings
+- Each test gets an **isolated database** using atomic counters + UUIDs
+- **Connection pool limits** (3 connections max) prevent resource exhaustion
+
+This strategy delivers **100% test reliability** while maintaining optimal execution speed for development workflows.
+
 ---
 
 **Result**: Our hybrid approach achieves **~24s total execution time** with **100% reliability** - significantly faster than naive sequential execution while maintaining the predictability needed for CI/CD. 

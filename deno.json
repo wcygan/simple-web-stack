@@ -8,6 +8,7 @@
         "test:backend:advanced": "./scripts/test-backend.ts --advanced",
         "test:backend:unit": "./scripts/test-backend.ts --unit",
         "test:backend:integration": "./scripts/test-backend.ts --integration",
+        "test:backend:performance": "./scripts/test-backend.ts --performance",
         "test:backend:integration:parallel": "./scripts/test-backend.ts --integration --parallel 2",
         "test:backend:watch": "./scripts/test-backend.ts --watch",
         "docker:ps": "docker compose ps",

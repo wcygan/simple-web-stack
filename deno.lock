@@ -2,27 +2,49 @@
   "version": "5",
   "specifiers": {
     "jsr:@david/dax@*": "0.43.1",
+    "jsr:@david/dax@~0.39.2": "0.39.2",
     "jsr:@david/path@0.2": "0.2.0",
+    "jsr:@david/which@0.3": "0.3.0",
     "jsr:@david/which@~0.4.1": "0.4.1",
+    "jsr:@std/assert@0.213": "0.213.1",
+    "jsr:@std/bytes@0.213": "0.213.1",
     "jsr:@std/bytes@^1.0.5": "1.0.6",
     "jsr:@std/cli@0.224": "0.224.7",
+    "jsr:@std/fmt@0.213.0": "0.213.0",
     "jsr:@std/fmt@0.224": "0.224.0",
     "jsr:@std/fmt@1": "1.0.8",
+    "jsr:@std/fs@0.213.0": "0.213.0",
     "jsr:@std/fs@0.224": "0.224.0",
     "jsr:@std/fs@1": "1.0.17",
+    "jsr:@std/io@0.213": "0.213.0",
+    "jsr:@std/io@0.213.0": "0.213.0",
     "jsr:@std/io@0.225": "0.225.2",
+    "jsr:@std/path@0.213": "0.213.0",
+    "jsr:@std/path@0.213.0": "0.213.0",
     "jsr:@std/path@1": "1.1.0",
-    "jsr:@std/path@^1.0.9": "1.1.0"
+    "jsr:@std/path@^1.0.9": "1.1.0",
+    "jsr:@std/streams@0.213.0": "0.213.0"
   },
   "jsr": {
+    "@david/dax@0.39.2": {
+      "integrity": "f7fde219e9a4b331024bcc89bfc5c63b85348cad61ff26a963d893262d92b01c",
+      "dependencies": [
+        "jsr:@david/which@0.3",
+        "jsr:@std/fmt@0.213.0",
+        "jsr:@std/fs@0.213.0",
+        "jsr:@std/io@0.213.0",
+        "jsr:@std/path@0.213.0",
+        "jsr:@std/streams"
+      ]
+    },
     "@david/dax@0.43.1": {
       "integrity": "2891dd94b53b8dec5d9caeeefe8378346a245d58edeb275274ef562b9434180e",
       "dependencies": [
         "jsr:@david/path",
-        "jsr:@david/which",
+        "jsr:@david/which@~0.4.1",
         "jsr:@std/fmt@1",
         "jsr:@std/fs@1",
-        "jsr:@std/io",
+        "jsr:@std/io@0.225",
         "jsr:@std/path@1"
       ]
     },
@@ -33,8 +55,17 @@
         "jsr:@std/path@1"
       ]
     },
+    "@david/which@0.3.0": {
+      "integrity": "6bdb62c40ac90edcf328e854fa8103a8db21e7c326089cbe3c3a1cf7887d3204"
+    },
     "@david/which@0.4.1": {
       "integrity": "896a682b111f92ab866cc70c5b4afab2f5899d2f9bde31ed00203b9c250f225e"
+    },
+    "@std/assert@0.213.1": {
+      "integrity": "24c28178b30c8e0782c18e8e94ea72b16282207569cdd10ffb9d1d26f2edebfe"
+    },
+    "@std/bytes@0.213.1": {
+      "integrity": "97f133c5bfb18b4522675e0822089de91e32618a4d8c2fcea8e175aca8f1f65c"
     },
     "@std/bytes@1.0.6": {
       "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
@@ -42,11 +73,21 @@
     "@std/cli@0.224.7": {
       "integrity": "654ca6477518e5e3a0d3fabafb2789e92b8c0febf1a1d24ba4b567aba94b5977"
     },
+    "@std/fmt@0.213.0": {
+      "integrity": "4623054b309ee60e37cc3db2bc55385aa129bb899f0c50e912d79a763aee6b6a"
+    },
     "@std/fmt@0.224.0": {
       "integrity": "e20e9a2312a8b5393272c26191c0a68eda8d2c4b08b046bad1673148f1d69851"
     },
     "@std/fmt@1.0.8": {
       "integrity": "71e1fc498787e4434d213647a6e43e794af4fd393ef8f52062246e06f7e372b7"
+    },
+    "@std/fs@0.213.0": {
+      "integrity": "607ed7611e61e33179e2a6a7c60c086d6fef3b79438c403c51a336d0ca4e162d",
+      "dependencies": [
+        "jsr:@std/assert",
+        "jsr:@std/path@0.213"
+      ]
     },
     "@std/fs@0.224.0": {
       "integrity": "52a5ec89731ac0ca8f971079339286f88c571a4d61686acf75833f03a89d8e69"
@@ -57,14 +98,33 @@
         "jsr:@std/path@^1.0.9"
       ]
     },
+    "@std/io@0.213.0": {
+      "integrity": "e78db92000e718c4b37e3c5f8a854a7c8d66cf4f1ab81d2c5c834172e66191cb",
+      "dependencies": [
+        "jsr:@std/assert",
+        "jsr:@std/bytes@0.213"
+      ]
+    },
     "@std/io@0.225.2": {
       "integrity": "3c740cd4ee4c082e6cfc86458f47e2ab7cb353dc6234d5e9b1f91a2de5f4d6c7",
       "dependencies": [
-        "jsr:@std/bytes"
+        "jsr:@std/bytes@^1.0.5"
+      ]
+    },
+    "@std/path@0.213.0": {
+      "integrity": "9488ae5c052132130ac8ae406aafe1db2a407d6839ac0e8896c99497ff59087e",
+      "dependencies": [
+        "jsr:@std/assert"
       ]
     },
     "@std/path@1.1.0": {
       "integrity": "ddc94f8e3c275627281cbc23341df6b8bcc874d70374f75fec2533521e3d6886"
+    },
+    "@std/streams@0.213.0": {
+      "integrity": "14519c7ce5f4c88de2e365f4bf1b8371c942a9fe0e1f9a0b9e10a56e3c3e3877",
+      "dependencies": [
+        "jsr:@std/io@0.213"
+      ]
     }
   },
   "remote": {

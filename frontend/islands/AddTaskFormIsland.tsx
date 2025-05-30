@@ -30,9 +30,6 @@ export default function AddTaskFormIsland({ newTaskTitleSignal, onAddTask }: Add
           Add Task
         </button>
       </div>
-      {!newTaskTitleSignal.value.trim() && (
-        <p class="text-sm text-red-500 mt-1">Task title cannot be empty.</p>
-      )}
     </form>
   );
 } 

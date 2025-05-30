@@ -1,0 +1,218 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Docker + Fresh Full-Stack Integration Guide
+
+This rule documents critical patterns and solutions for integrating Deno Fresh frontends with containerized backends, based on real-world implementation challenges and solutions.
+
+## Docker Networking Architecture
+
+### The Core Problem
+When running Fresh in Docker containers, **browser JavaScript cannot directly call backend containers** using `localhost:PORT` or `http://backend:3000` URLs. This is because:
+- Browser JavaScript runs on the host machine, not inside Docker
+- Docker service names (`backend`, `mysql`) only work for container-to-container communication
+- CORS policies block direct cross-origin requests
+
+### The Solution: Fresh API Proxy Pattern
+Create Fresh API routes that act as proxies between the frontend and backend:
+
+**File Structure:**
+```
+frontend/routes/api/
+├── tasks/
+│   ├── index.tsx        # GET /api/tasks, POST /api/tasks
+│   └── [id].tsx         # GET/PUT/DELETE /api/tasks/:id
+```
+
+**Example Implementation:** [frontend/routes/api/tasks/index.tsx](mdc:frontend/routes/api/tasks/index.tsx)
+```typescript
+import { define } from "../../../utils.ts";
+
+const BACKEND_API = "http://backend:3000"; // Docker service name
+
+export const handler = define.handlers({
+  async GET(ctx) {
+    const response = await fetch(`${BACKEND_API}/tasks`);
+    const data = await response.json();
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+  // ... other methods
+});
+```
+
+**Frontend Integration:** [frontend/islands/TodoApp.tsx](mdc:frontend/islands/TodoApp.tsx)
+```typescript
+// ✅ Correct: Use Fresh API routes (same-origin)
+const API_BASE = "/api";
+
+// ❌ Wrong: Direct container communication
+// const API_BASE = "http://backend:3000";
+```
+
+## Preact Signals Effect Patterns
+
+### Infinite Loop Prevention
+**Problem:** Using `effect()` that both reads and writes signals causes infinite re-triggering.
+
+**Solution:** Use a mounting guard pattern:
+```typescript
+const mounted = useSignal(false);
+
+effect(() => {
+  if (mounted.value) return; // Prevent re-runs
+  
+  const loadData = async () => {
+    try {
+      // ... async operations
+      data.value = result;
+    } finally {
+      mounted.value = true; // Mark as mounted
+    }
+  };
+  
+  loadData();
+});
+```
+
+## Docker Compose Configuration
+
+### Service Communication Setup
+Reference: [docker-compose.yml](mdc:docker-compose.yml)
+
+**Key Points:**
+- Use service names for container-to-container communication
+- Backend must bind to `0.0.0.0:PORT`, not `127.0.0.1:PORT`
+- Frontend proxy routes handle browser ↔ backend communication
+- Proper health checks ensure services are ready before dependents start
+
+## Error Handling & User Experience
+
+### Progressive Enhancement Pattern
+1. **Loading States**: Show loading indicators during async operations
+2. **Error Boundaries**: Display user-friendly error messages
+3. **Optimistic Updates**: Update UI immediately, handle failures gracefully
+4. **Network Resilience**: Retry logic for transient failures
+
+Example from [frontend/islands/TodoApp.tsx](mdc:frontend/islands/TodoApp.tsx):
+```typescript
+const loading = useSignal(true);
+const error = useSignal("");
+
+// Show errors to users
+{error.value && (
+  <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+    {error.value}
+  </div>
+)}
+```
+
+## Automated UI Testing with Puppeteer
+
+### Testing Full-Stack Integration
+Use Puppeteer MCP for comprehensive end-to-end testing:
+
+**1. Navigation & Screenshots:**
+```javascript
+// Navigate to app
+await mcp_puppeteer_puppeteer_navigate({ url: "http://localhost:8000/" });
+
+// Take verification screenshots
+await mcp_puppeteer_puppeteer_screenshot({ 
+  name: "integration_test", 
+  width: 1200, 
+  height: 800 
+});
+```
+
+**2. CRUD Operation Testing:**
+```javascript
+// Test CREATE
+await mcp_puppeteer_puppeteer_fill({
+  selector: "input[type='text']",
+  value: "Test task"
+});
+await mcp_puppeteer_puppeteer_click({
+  selector: "button[type='submit']"
+});
+
+// Test UPDATE (toggle completion)
+await mcp_puppeteer_puppeteer_click({
+  selector: "input[type='checkbox']"
+});
+
+// Test DELETE
+await mcp_puppeteer_puppeteer_evaluate({
+  script: `
+    const deleteButton = Array.from(document.querySelectorAll('button'))
+      .find(btn => btn.textContent.includes('Delete'));
+    if (deleteButton) deleteButton.click();
+  `
+});
+```
+
+**3. Verification Patterns:**
+- Verify loading states disappear
+- Check error messages aren't displayed
+- Confirm data persistence with backend API calls
+- Test responsive behavior across screen sizes
+
+### Backend Verification
+Always verify data persistence independently:
+```bash
+curl -s http://localhost:3000/tasks | jq
+```
+
+## Common Pitfalls & Solutions
+
+### ❌ **Don't:** Direct backend calls from browser
+```typescript
+// This fails in Docker containers
+fetch('http://backend:3000/api/data')
+```
+
+### ✅ **Do:** Use Fresh proxy routes
+```typescript
+// This works - same origin request
+fetch('/api/data')
+```
+
+### ❌ **Don't:** Infinite effect loops
+```typescript
+effect(() => {
+  loading.value = true; // Triggers effect again!
+  // ... async work
+});
+```
+
+### ✅ **Do:** Guard against re-execution
+```typescript
+effect(() => {
+  if (mounted.value) return;
+  // ... one-time initialization
+});
+```
+
+## Testing Checklist
+
+### Full-Stack Integration Testing
+- [ ] Initial data loads from backend
+- [ ] CREATE operations work and update UI
+- [ ] UPDATE operations persist and reflect in UI
+- [ ] DELETE operations remove items completely
+- [ ] Error states display properly
+- [ ] Loading states show and hide correctly
+- [ ] Data persists across page refreshes
+- [ ] Backend API returns expected data structure
+
+### Network Tab Debugging
+- [ ] No infinite request loops
+- [ ] Requests use correct URLs (`/api/...` not `http://backend:...`)
+- [ ] Response status codes are appropriate (200, 201, 204, etc.)
+- [ ] Error responses include helpful messages
+
+This pattern ensures reliable full-stack applications with proper separation of concerns, robust error handling, and comprehensive testing coverage.

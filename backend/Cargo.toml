@@ -1,43 +1,6 @@
 [package]
 name = "backend"
 version = "0.1.0"
-edition = "2021"
-description = "Simple Web Stack Backend"
-license = "MIT"
-repository = "https://github.com/wcygan/simple-web-stack"
-keywords = ["web", "axum", "backend"]
-categories = ["web-programming"]
+edition = "2024"
 
 [dependencies]
-axum = "0.8"
-tokio = { version = "1.42", features = ["full"] }
-tower = "0.5"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-config = "0.14"
-sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "mysql", "uuid", "chrono", "macros"] }
-uuid = { version = "1.6.1", features = ["v4", "serde"] }
-tower-http = { version = "0.5.0", features = ["trace"] }
-clap = { version = "4.0", features = ["derive", "env"] }
-
-[dev-dependencies]
-tower = { version = "0.5", features = ["util"] }
-http-body-util = "0.1"
-mime = "0.3"
-criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
-
-[lints.clippy]
-all = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
-nursery = { level = "warn", priority = -1 }
-cargo = { level = "warn", priority = -1 }
-module_name_repetitions = "allow"
-missing_errors_doc = "allow"
-multiple-crate-versions = "allow" # Allowing this for now
-
-[[bench]]
-name = "health_check_bench"
-harness = false

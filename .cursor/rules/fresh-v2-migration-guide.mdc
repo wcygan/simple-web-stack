@@ -1,0 +1,103 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Deno Fresh 2 Migration and Usage Guide
+
+This guide summarizes key changes and practices for Deno Fresh 2, based on the official migration guide.
+
+## Core Changes from Fresh 1.x to Fresh 2.x
+
+### 1. Configuration and File Structure
+*   **No `fresh.config.ts` or `fresh.gen.ts`**: Configuration is now managed directly within `dev.ts` (for development) and `main.ts` (for production). The `fresh.gen.ts` manifest file is obsolete.
+*   **`dev.ts` for Development Setup**:
+    *   Uses `Builder` from `fresh/dev` for development-specific configurations (e.g., browser targets, development-only plugins like Tailwind CSS).
+    *   Handles building optimized assets via `deno run -A dev.ts build`.
+    *   Starts the development server: `await builder.listen(app);`.
+*   **`main.ts` for Production Setup**:
+    *   Production configuration is passed to `new App()`.
+    *   Middleware (e.g., `staticFiles()`) is added here.
+    *   File-system routing is enabled using `await fsRoutes(app, { loadIsland, loadRoute });`.
+    *   Server starts via `if (import.meta.main) { await app.listen(); }`.
+
+### 2. Error Handling
+*   **Unified `_error.tsx`**: Replaces separate `_404.tsx` and `_500.tsx` files.
+*   Inside `_error.tsx`, `props.error` provides the error object. If it's an `HttpError`, `error.status` can be used to differentiate (e.g., 404).
+
+### 3. `<Head>` Component Removal
+*   The `<Head>` component for injecting tags into `<head>` is removed.
+*   **New Method**: Pass head-related data (e.g., page titles) via `ctx.state` in route handlers and render this data in `_app.tsx` or layout components.
+    ```typescript
+    // Example: in a route handler (e.g., routes/about.tsx)
+    // export const handler = {
+    //   GET(ctx) {
+    //     ctx.state.title = "About Us";
+    //     return page(); // or ctx.render() in Fresh 1.x terms
+    //   },
+    // };
+
+    // Example: in _app.tsx
+    // export default function AppWrapper(ctx: FreshContext) {
+    //   return (
+    //     <html lang="en">
+    //       <head>
+    //         <meta charset="utf-8" />
+    //         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    //         {ctx.state.title ? <title>{ctx.state.title}</title> : null}
+    //       </head>
+    //       <body>
+    //         <ctx.Component />
+    //       </body>
+    //     </html>
+    //   );
+    // }
+    ```
+
+### 4. Deployment Process
+*   **Mandatory Build Step**: Assets *must* be built during deployment (e.g., using `deno task build` or `deno run -A dev.ts build`). This is similar to Fresh 1.x's "Ahead-of-Time Builds".
+
+### 5. Trailing Slash Handling
+*   Now managed by an optional middleware: `import { trailingSlashes } from "fresh";`.
+*   Usage: `app.use(trailingSlashes("never"));` or `app.use(trailingSlashes("always"));`.
+
+### 6. API Signature Unification
+*   Middleware, handler, and async route component functions now receive a single argument (`ctx` for middleware/handlers, `props` for route components).
+*   The `Request` object is available as `ctx.req`.
+*   Context interfaces (`AppContext`, `LayoutContext`, `RouteContext`) are consolidated into `FreshContext`.
+    ```typescript
+    // Middleware
+    // - const middleware = (req, ctx) => new Response("ok");
+    // + const middleware = (ctx) => new Response("ok");
+
+    // Handler
+    // export const handler = {
+    // -   GET(req, ctx) { return new Response("ok"); }
+    // +   GET(ctx) { return new Response("ok"); }
+    // };
+
+    // Async Route Component
+    // - export default async function MyPage(req: Request, ctx: RouteContext) {}
+    // + export default async function MyPage(props: PageProps) {}
+    ```
+
+### 7. Context Method Changes
+*   `ctx.renderNotFound()` is removed. Throw `new HttpError(404)` instead.
+*   Property changes:
+    *   `ctx.basePath` -> `ctx.config.basePath`
+    *   `ctx.remoteAddr` -> `ctx.info.remoteAddr`
+
+## Automatic Updates
+
+*   Many API changes can be applied automatically using: `deno run -Ar jsr:@fresh/update`
+
+## Key Files (Conceptual Paths)
+*   Development entry point: `dev.ts`
+*   Production entry point: `main.ts`
+*   Islands directory: `islands/`
+*   Routes directory: `routes/`
+    *   App wrapper: `routes/_app.tsx`
+    *   Unified error page: `routes/_error.tsx`
+*   Static files: `static/`
+
+This rule summarizes the official Fresh 2 migration guide available at [https://fresh.deno.dev/docs/canary/examples/migration-guide](mdc:https:/fresh.deno.dev/docs/canary/examples/migration-guide).

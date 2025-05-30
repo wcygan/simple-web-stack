@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Simple Web Stack Backend");
     info!("Configuration: {:?}", config);
 
-    // Create database connection pool (optional)
+    // Create a database connection pool (optional)
     let db_pool = if let Some(db_config) = config.database() {
         info!("Connecting to database: {}", db_config.url);
         let pool = MySqlPoolOptions::new()

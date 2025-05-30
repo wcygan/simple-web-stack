@@ -31,6 +31,7 @@ This project uses Docker Compose to manage its services. The Deno tasks provide 
 ## Testing
 
 ### Backend Testing
+
 The backend includes comprehensive testing at multiple levels:
 
 - **Unit Tests**: Fast, isolated tests of individual components (embedded in Rust code)

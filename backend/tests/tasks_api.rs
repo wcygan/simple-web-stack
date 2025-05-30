@@ -10,7 +10,7 @@ async fn create_task_returns_201_for_valid_data() {
     let client = reqwest::Client::new();
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Test task"
         }))
@@ -34,7 +34,7 @@ async fn create_task_returns_400_for_empty_title() {
     let client = reqwest::Client::new();
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "   "
         }))
@@ -53,7 +53,7 @@ async fn create_task_returns_422_for_missing_title() {
     let client = reqwest::Client::new();
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({}))
         .send()
         .await
@@ -70,7 +70,7 @@ async fn create_task_handles_title_with_leading_trailing_spaces() {
     let client = reqwest::Client::new();
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "  A task with spaces  "
         }))
@@ -95,7 +95,7 @@ async fn create_task_handles_title_with_special_characters() {
     let special_title = "A task with !@#$%^&*()_+-=[]{};':\",./<>?";
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": special_title
         }))
@@ -120,7 +120,7 @@ async fn create_task_handles_max_length_title() {
     let max_length_title = "a".repeat(255);
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": max_length_title
         }))
@@ -155,7 +155,7 @@ async fn create_task_ignores_explicit_id_in_request() {
     let provided_id = uuid::Uuid::new_v4().to_string();
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "id": provided_id,
             "title": "Task with explicit ID"
@@ -179,7 +179,7 @@ async fn create_task_ignores_explicit_completed_status_in_request() {
     let client = reqwest::Client::new();
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Task with explicit completed status",
             "completed": true // Attempt to create as completed
@@ -203,7 +203,7 @@ async fn get_task_returns_200_for_existing_task() {
 
     // Create a task first
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Test task"
         }))
@@ -219,7 +219,7 @@ async fn get_task_returns_200_for_existing_task() {
 
     // Get the task
     let response = client
-        .get(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .get(format!("{}/tasks/{}", &test_app.address, task_id))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -241,7 +241,7 @@ async fn get_task_returns_404_for_non_existing_task() {
     let fake_id = uuid::Uuid::new_v4();
 
     let response = client
-        .get(&format!("{}/tasks/{}", &test_app.address, fake_id))
+        .get(format!("{}/tasks/{}", &test_app.address, fake_id))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -258,7 +258,7 @@ async fn get_task_returns_400_for_invalid_uuid_format() {
     let invalid_uuid = "not-a-uuid";
 
     let response = client
-        .get(&format!("{}/tasks/{}", &test_app.address, invalid_uuid))
+        .get(format!("{}/tasks/{}", &test_app.address, invalid_uuid))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -282,7 +282,7 @@ async fn list_tasks_returns_empty_array_when_no_tasks() {
     let client = reqwest::Client::new();
 
     let response = client
-        .get(&format!("{}/tasks", &test_app.address))
+        .get(format!("{}/tasks", &test_app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -304,7 +304,7 @@ async fn list_tasks_returns_all_tasks() {
     let mut created_task_ids = Vec::new();
     for i in 1..=3 {
         let create_response = client
-            .post(&format!("{}/tasks", &test_app.address))
+            .post(format!("{}/tasks", &test_app.address))
             .json(&json!({
                 "title": format!("Task {}", i)
             }))
@@ -317,7 +317,7 @@ async fn list_tasks_returns_all_tasks() {
 
     // List tasks
     let response = client
-        .get(&format!("{}/tasks", &test_app.address))
+        .get(format!("{}/tasks", &test_app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -346,7 +346,7 @@ async fn list_tasks_returns_many_tasks() {
         let title = format!("Bulk Task {}", i);
         created_task_titles.push(title.clone());
         client
-            .post(&format!("{}/tasks", &test_app.address))
+            .post(format!("{}/tasks", &test_app.address))
             .json(&json!({
                 "title": title
             }))
@@ -356,7 +356,7 @@ async fn list_tasks_returns_many_tasks() {
     }
 
     let response = client
-        .get(&format!("{}/tasks", &test_app.address))
+        .get(format!("{}/tasks", &test_app.address))
         .send()
         .await
         .expect("Failed to execute list tasks request.");
@@ -386,7 +386,7 @@ async fn update_task_returns_200_for_valid_update() {
 
     // Create a task first
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Original title"
         }))
@@ -402,7 +402,7 @@ async fn update_task_returns_200_for_valid_update() {
 
     // Update the task
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, task_id))
         .json(&json!({
             "title": "Updated title",
             "completed": true
@@ -427,7 +427,7 @@ async fn update_task_returns_404_for_non_existing_task() {
     let fake_id = uuid::Uuid::new_v4();
 
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, fake_id))
+        .put(format!("{}/tasks/{}", &test_app.address, fake_id))
         .json(&json!({
             "title": "Updated title"
         }))
@@ -447,7 +447,7 @@ async fn update_task_returns_400_for_empty_title() {
 
     // Create a task first
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Original title"
         }))
@@ -463,7 +463,7 @@ async fn update_task_returns_400_for_empty_title() {
 
     // Try to update with empty title
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, task_id))
         .json(&json!({
             "title": "   "
         }))
@@ -483,7 +483,7 @@ async fn update_task_partial_update_works() {
 
     // Create a task first
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Original title"
         }))
@@ -499,7 +499,7 @@ async fn update_task_partial_update_works() {
 
     // Update only completed status
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, task_id))
         .json(&json!({
             "completed": true
         }))
@@ -522,7 +522,7 @@ async fn update_task_handles_title_with_leading_trailing_spaces() {
     let client = reqwest::Client::new();
 
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({"title": "Initial Title"}))
         .send()
         .await
@@ -533,7 +533,7 @@ async fn update_task_handles_title_with_leading_trailing_spaces() {
         .to_string();
 
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, &task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, &task_id))
         .json(&json!({
             "title": "  Updated Title With Spaces  "
         }))
@@ -556,7 +556,7 @@ async fn update_task_handles_title_with_special_characters() {
     let special_title = "Updated Task !@#$%^&*()_+-=[]{};':\",./<>?";
 
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({"title": "Initial Title For Special Chars"}))
         .send()
         .await
@@ -567,7 +567,7 @@ async fn update_task_handles_title_with_special_characters() {
         .to_string();
 
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, &task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, &task_id))
         .json(&json!({
             "title": special_title
         }))
@@ -589,7 +589,7 @@ async fn update_task_returns_400_for_invalid_uuid_format() {
     let invalid_uuid = "not-a-uuid";
 
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, invalid_uuid))
+        .put(format!("{}/tasks/{}", &test_app.address, invalid_uuid))
         .json(&json!({
             "title": "Update with invalid id"
         }))
@@ -610,7 +610,7 @@ async fn update_task_returns_422_for_empty_json_body() {
     let client = reqwest::Client::new();
 
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({"title": "Task to update with empty body"}))
         .send()
         .await
@@ -621,7 +621,7 @@ async fn update_task_returns_422_for_empty_json_body() {
         .to_string();
 
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, &task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, &task_id))
         .header("Content-Type", "application/json") // Ensure content type is set
         .body("{}") // Send an empty JSON object
         .send()
@@ -643,7 +643,7 @@ async fn update_task_ignores_extra_fields_in_request() {
     let client = reqwest::Client::new();
 
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({"title": "Task for extra fields test"}))
         .send()
         .await
@@ -654,7 +654,7 @@ async fn update_task_ignores_extra_fields_in_request() {
         .to_string();
 
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, &task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, &task_id))
         .json(&json!({
             "title": "Updated Title With Extra",
             "completed": true,
@@ -682,7 +682,7 @@ async fn delete_task_returns_204_for_existing_task() {
 
     // Create a task first
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Task to delete"
         }))
@@ -698,7 +698,7 @@ async fn delete_task_returns_204_for_existing_task() {
 
     // Delete the task
     let response = client
-        .delete(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .delete(format!("{}/tasks/{}", &test_app.address, task_id))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -707,7 +707,7 @@ async fn delete_task_returns_204_for_existing_task() {
 
     // Verify task is deleted
     let get_response = client
-        .get(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .get(format!("{}/tasks/{}", &test_app.address, task_id))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -724,7 +724,7 @@ async fn delete_task_returns_404_for_non_existing_task() {
     let fake_id = uuid::Uuid::new_v4();
 
     let response = client
-        .delete(&format!("{}/tasks/{}", &test_app.address, fake_id))
+        .delete(format!("{}/tasks/{}", &test_app.address, fake_id))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -741,7 +741,7 @@ async fn delete_task_returns_400_for_invalid_uuid_format() {
     let invalid_uuid = "not-a-uuid";
 
     let response = client
-        .delete(&format!("{}/tasks/{}", &test_app.address, invalid_uuid))
+        .delete(format!("{}/tasks/{}", &test_app.address, invalid_uuid))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -761,7 +761,7 @@ async fn post_tasks_returns_json_content_type() {
     let client = reqwest::Client::new();
 
     let response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Content-Type Test"
         }))
@@ -785,7 +785,7 @@ async fn get_task_returns_json_content_type() {
 
     // Create a task first
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Content-Type Test GET"
         }))
@@ -796,7 +796,7 @@ async fn get_task_returns_json_content_type() {
     let task_id = created_task["id"].as_str().unwrap();
 
     let response = client
-        .get(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .get(format!("{}/tasks/{}", &test_app.address, task_id))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -816,7 +816,7 @@ async fn list_tasks_returns_json_content_type() {
     let client = reqwest::Client::new();
 
     let response = client
-        .get(&format!("{}/tasks", &test_app.address))
+        .get(format!("{}/tasks", &test_app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -837,7 +837,7 @@ async fn put_task_returns_json_content_type() {
 
     // Create a task first
     let create_response = client
-        .post(&format!("{}/tasks", &test_app.address))
+        .post(format!("{}/tasks", &test_app.address))
         .json(&json!({
             "title": "Content-Type Test PUT"
         }))
@@ -848,7 +848,7 @@ async fn put_task_returns_json_content_type() {
     let task_id = created_task["id"].as_str().unwrap();
 
     let response = client
-        .put(&format!("{}/tasks/{}", &test_app.address, task_id))
+        .put(format!("{}/tasks/{}", &test_app.address, task_id))
         .json(&json!({
             "title": "Updated Content-Type Test PUT",
             "completed": true

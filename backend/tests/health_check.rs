@@ -13,7 +13,7 @@ async fn health_check_works() {
 
     // Send request to health endpoint
     let response = client
-        .get(&format!("{}/health", &test_app.address))
+        .get(format!("{}/health", &test_app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -38,7 +38,7 @@ async fn health_check_returns_200() {
     let client = reqwest::Client::new();
 
     let response = client
-        .get(&format!("{}/health", &test_app.address))
+        .get(format!("{}/health", &test_app.address))
         .send()
         .await
         .expect("Failed to execute request.");

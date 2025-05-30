@@ -5,7 +5,11 @@ use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+mod db;
+mod models;
 mod routes; // Assuming routes.rs will be created next
+
+use db::{create_pool, init_db, AppState};
 
 /// Command line arguments
 #[derive(Parser, Debug)]
@@ -39,17 +43,23 @@ async fn main() {
 
     tracing::info!("Starting server, listening on {}", cli.app_bind_address);
     tracing::debug!("CLI arguments: {:?}", cli);
-    // DATABASE_URL will be used later. For now, we just log it if provided.
-    if !cli.database_url.is_empty() {
-        tracing::info!("DATABASE_URL is set (will be used for DB connection later)");
-    } else {
-        tracing::warn!("DATABASE_URL is not set. This will be required for database operations.");
-    }
+
+    // Create database connection pool
+    let pool = create_pool(&cli.database_url)
+        .await
+        .expect("Failed to create database pool");
+
+    // Initialize database schema
+    init_db(&pool).await.expect("Failed to initialize database");
+
+    // Create application state
+    let app_state = AppState { pool };
 
     // Build our application with a route
     let app = Router::new()
         .route("/health", get(routes::health_check)) // Mount health_check from routes.rs
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .with_state(app_state);
 
     // Parse the bind address
     let addr: SocketAddr = cli

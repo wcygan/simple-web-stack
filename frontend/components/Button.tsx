@@ -1,7 +1,7 @@
 import { JSX } from "preact";
 
 // Explicitly include type and disabled attributes for buttons
-interface ButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
   type?: "button" | "submit" | "reset";
   disabled?: boolean; // Explicitly adding disabled here
 }

@@ -1,0 +1,150 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Deno Fresh Full-Stack Development Guide
+
+This guide outlines best practices and key concepts for developing full-stack applications using Deno Fresh. Fresh is a full-stack web framework that leverages server-side rendering and an islands architecture to build fast and efficient applications.
+
+## Core Principles
+
+| Goal                                              | Fresh-specific lever                                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ship the bare minimum to browsers**             | SSR by default + *islands* for the interactive bits only ([fresh.deno.dev](mdc:https:/fresh.deno.dev/docs/concepts/architecture))                |
+| **Keep secrets and business logic on the server** | Route handlers live next to pages, so DB / 3-rd-party calls never touch an island component ([DEV Community](mdc:https:/dev.to/shadid12/building-a-full-stack-app-with-deno-fresh-and-fauna-223p))                            |
+| **Make cache-busting deterministic**              | Always set `DENO_DEPLOYMENT_ID` (git SHA, build hash, etc.) inside Docker/self-host images to avoid stale caches ([fresh.deno.dev](mdc:https:/fresh.deno.dev/docs/concepts/deployment))      |
+
+## 1. Project Structure and Organization
+
+*   **Routes**: Leverage Fresh\'s file-system routing by organizing your page components and API handlers within the `routes/` directory. Files within this directory define the application\'s paths.
+    *   For example, a file at `routes/posts/new.tsx` will automatically become accessible at the `/posts/new` path.
+    *   **API Routes:** You can create API endpoints by placing files in the `routes/api/` directory. These routes can handle requests and return various response types, such as JSON or plain text.
+    *   **Dynamic Routes:** Fresh supports dynamic routing. For instance, a file named `routes/blog/[id].tsx` can handle requests for specific blog posts, where `[id]` is a parameter.
+*   **Components**: Place reusable UI components in a `components/` directory. These are typically Preact components used for rendering parts of your UI.
+*   **Islands for Interactivity**: For client-side interactivity, create components in the `islands/` directory. These "islands" are isolated Preact components that get hydrated on the client when they are used in a route\'s template, allowing for dynamic user experiences without shipping unnecessary JavaScript for static parts of the page. Fresh automatically re-hydrates these islands, loading JavaScript only for these specific interactive parts. This minimizes the amount of JavaScript shipped to the browser.
+*   **Application Layout**: Define a global application layout using a `routes/_app.tsx` file. This allows you to wrap all your pages with common elements like navigation bars or footers.
+*   **Configuration**:
+    *   Use `[deno.json](mdc:deno.json)` for Deno-specific configurations, tasks, and import maps.
+    *   For Fresh-specific configurations, especially when using plugins or Ahead-of-Time (AOT) builds, use a `fresh.config.ts` file (e.g., `[fresh.config.ts](mdc:fresh.config.ts)` if one exists at the root). This ensures consistency between development (`dev.ts`, e.g., `[dev.ts](mdc:dev.ts)`) and production (`main.ts`, e.g., `[main.ts](mdc:main.ts)`) entry points.
+*   **Static Files**: Static assets like images and CSS are placed in the `static/` folder. Fresh provides a built-in asset helper that can be used to automatically cache assets by generating a unique URL with a build ID, typically setting cache control headers for a year.
+
+## 2. Server-Side Logic and Data Handling
+
+*   **Route Handlers**: Implement server-side logic, including database interactions, third-party API calls, and data fetching, within handler functions in your route files (e.g., files in `routes/` or `routes/api/`). This approach helps protect sensitive information, such as API secrets, by preventing their exposure to the client. These handlers can process `GET`, `POST`, `PUT`, `DELETE`, etc., requests.
+    *   **Handler and Hybrid Routes:** Data fetching can be managed through handler routes, which export a function to process requests and return responses. Hybrid routes combine API handler functionalities with server-side rendering by using functions named after HTTP verbs within a `handler` object.
+    *   **Form Submissions:** Form submissions, for example, can be handled server-side using a `POST` handler in your route, which can then process the data and redirect the user.
+*   **Passing Data to Components**: Use the `ctx.render()` method within your route handlers to pass data fetched on the server to your page components for rendering. Props passed from the server are accessible in components via `props.data`.
+*   **API Routes**: Create dedicated API routes (e.g., under `routes/api/`) to handle data operations (CRUD). Frontend components (especially islands) can then interact with these APIs using `fetch`.
+*   **Web Standard APIs**: Utilize web standard APIs like `fetch` directly in your Deno code, both on the server and for client-side requests from islands. Fresh adheres to web standards by utilizing features like import maps and the fetch API. Deno itself, upon which Fresh is built, also prioritizes web standards and participates in groups like WinterCG to promote API interoperability across JavaScript runtimes.
+*   **Middleware**: Middleware functions can be defined in `_middleware.ts` (or `.js`) files within the `routes` folder. Multiple middlewares are supported, with less specific ones (e.g., in the root of `routes/`) running before more specific ones (e.g., in a subfolder). Middleware can be used to modify requests or responses, such as adding headers.
+
+## 3. Architect the UI around Islands
+
+*   Treat every route file in **`routes/`** as a *server component*. If the user can't interact with it, leave it that way—no JS shipped.
+*   Put each interactive widget in **`islands/`**; hydrate only when it scrolls into view or when the user actually needs it. This keeps Time-to-Interactive tiny, especially on mobile or low-power devices.
+*   Prefer progressive enhancement: `<form>` + server handler first, then sprinkle an island if you need optimistic UI or client-side validations. The framework's server-first bias makes this trivial.
+
+**Trade-off**
+If you need SPA-like routing or global client state, Fresh isn't the best tool—reach for SolidStart/Next instead. For a content-heavy or mixed app (think dashboards, blogs, portals) Fresh's island model wins on bundle size and SEO.
+
+## 4. Data & API layer
+
+| Pattern                                       | When to use                                       | Snippet                                                                                                                                                   |
+| --------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Inline REST endpoints** (`routes/api/*.ts`) | small BFF-style APIs, prototyping                 | `export const handler: Handlers = { GET, POST… }` — add CORS middleware if a separate front-end will hit it.                                              |
+| **External DB (Postgres, Fauna, etc.)**       | heavy data, analytics, latency-insensitive        | Hold connection pooling in a singleton module; call it only from handlers (never inside islands). Don't embed secrets in the browser ([DEV Community](mdc:https:/dev.to/shadid12/building-a-full-stack-app-with-deno-fresh-and-fauna-223p)) |
+| **Micro-services / Connect RPC / gRPC**       | you already have Go/Rust/Java back-end            | Use `await fetch("http://internal-svc/users")` inside handlers, or bring in a gRPC client—the island architecture stays unchanged.                        |
+
+## 5. State, Authentication, and Sessions
+
+*   Use **signed, HttpOnly cookies** via `Headers.append("Set-Cookie", …)`; Fresh exposes the standard `Request`/`Response` APIs so libraries like *cookie* from the Deno std lib just work.
+*   If your auth provider is OAuth/OIDC, keep the callback route entirely server-rendered and hand the final session cookie to islands that need the user object.
+*   For real-time UI (chat, notifications) open a WebSocket (or SSE) from an island and stream JSON payloads; server code lives in a route with an `upgradeWebSocket` handler.
+
+## 6. Styling & Assets
+
+*   **Styling**:
+    *   Fresh supports TWIND, a server-side rendered implementation of Tailwind CSS.
+    *   Standard CSS can also be used.
+    *   A build step can be added for other CSS pre-processors.
+*   **Assets**:
+    *   Static assets like images and fonts are placed in `static/`. Fresh serves them with strong `Cache-Control` automatically.
+    *   Keep third-party scripts out of islands when possible; load them with `<script defer src=…>` in `_app.tsx` so they don't block hydration.
+
+## 7. Development and Build Process
+
+*   **Scaffolding**: Scaffold a new Fresh project using the command: `deno run -A -r https://fresh.deno.dev my-project`.
+*   **Development Server**: Use `deno task start` (which typically runs `dev.ts`) for local development with features like live reloading. Deno\'s built-in file watcher will automatically restart the server on file changes. Be mindful of potential restart loops if generating files dynamically; ensure you don\'t overwrite identical files unnecessarily.
+*   **Entry Points**: The `dev.ts` file is used during development, while `main.ts` is used for production builds.
+*   **No Build Step (JIT Rendering)**: Fresh\'s default Just-In-Time (JIT) rendering means there\'s no mandatory build step for development. TypeScript and JSX are transpiled on the fly, enabling fast iteration.
+*   **Ahead-of-Time (AOT) Builds for Production**: For optimized production deployments, consider using AOT builds. This pre-builds static assets, potentially improving load times. Configure this with `deno task build` and ensure your Deno Deploy settings or Docker build process incorporates this step.
+    *   When using AOT, your `main.ts` (production entry point) and `dev.ts` (development entry point) should share configuration, often via `fresh.config.ts`.
+
+## 8. Deployment
+
+*   **Docker**:
+    *   You can containerize your Fresh application using Docker.
+    *   **Crucially**, set the `DENO_DEPLOYMENT_ID` environment variable in your Docker container (e.g., to a Git commit hash or a hash of project files). This ID must change whenever your project files change to ensure correct caching behavior by Fresh. Failure to do so can lead to incorrect caching and a non-functional application.
+    *   An example `Dockerfile` might involve using a `denoland/deno` base image, copying project files, running `deno cache main.ts` (or your entry point), exposing the port, and setting the CMD to `run -A main.ts`.
+*   **Self-Contained Executables**: With Deno 2.1+, you can compile your Fresh project into a self-contained executable using `deno compile`. This bundles all assets and dependencies, allowing it to run on platforms without Deno installed.
+
+| Target                              | Why pick it                               | Key step                                                                                                                                         |
+| ----------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Docker on K8s / Fly.io / Render** | you need private VPC, GPU, or sidecars    | Add `ARG GIT_REVISION` and set `ENV DENO_DEPLOYMENT_ID=$GIT_REVISION` in the Dockerfile; `deno cache main.ts` before `CMD` ([fresh.deno.dev](mdc:https:/fresh.deno.dev/docs/concepts/deployment)) |
+| **Bare-metal / VPS**                | full control, homelab setups              | Use *systemd* + Caddy/Nginx reverse-proxy; load env vars with `EnvironmentFile=.env` and auto-restart on failure ([timharek.no](mdc:https:/timharek.no/blog/how-to-self-host-deno-fresh))              |
+
+## 9. Error Handling
+
+*   Custom error pages, such as a custom 404 page, can be defined. These pages can access error-related props.
+*   For dynamic routes, `context.renderNotFound` can be used to render these custom error pages when a resource doesn\'t exist.
+
+## 10. Security
+
+*   **Deno Permissions**: Be mindful of Deno\'s security model. By default, scripts run without network, file system, or environment access.
+    *   Grant specific permissions as needed (e.g., `deno run --allow-net --allow-read main.ts`).
+    *   Avoid using the broad `-A` (allow all) flag in production environments. Use it judiciously during development for convenience.
+
+## 11. Observability & Testing
+
+*   **Logging** – `std/log` with `LogRecord` JSON encoder; pipe to Loki or CloudWatch.
+*   **Metrics** – on self-host expose `/metrics` in Prometheus format.
+*   **Unit/integration tests** – `deno test --allow-net` works for route handlers; run against a local Postgres container in CI.
+*   **e2e** – Playwright can hit the running Fresh dev server since it's just HTTP.
+
+## 12. Performance Checklist (Edge or Self-Host)
+
+1.  **Headers** – set `Cache-Control: public, max-age=...` in handlers that fetch data not unique per user.
+2.  **Partial rendering** – Use `<Partial f-partial="/route">` to stream HTML into an existing page instead of a full reload ([fresh.deno.dev](mdc:https:/fresh.deno.dev/docs)).
+3.  **AOT build** – `deno task build` + `deno compile --include static --include _fresh --include deno.json -A main.ts` for single-binary deploys (cold-start < 30 ms on ARM) ([fresh.deno.dev](mdc:https:/fresh.deno.dev/docs/concepts/deployment)).
+4.  **Brotli** – Caddy/Nginx can pre-compress `_fresh/*.js` at deploy time; no runtime cost.
+
+## 13. Interoperability (Optional)
+
+*   **Node.js and npm**: If needed, Deno Fresh applications can interoperate with Node.js built-in modules (using `node:` specifiers) and npm packages (using `npm:` specifiers). This can be useful for leveraging existing libraries.
+
+## 14. Tooling
+
+*   **IDE Integration**: Use an IDE with Deno support, such as VS Code with the official Deno extension, for a better development experience (autocompletion, type checking).
+
+## 15. Recommended path for a production full-stack setup
+
+> **Use Fresh purely as your edge-rendered front-end and BFF layer, while keeping business micro-services (Go/Rust with Connect RPC) and a managed Postgres in a private network.**
+
+*   You get SEO, fast TTI, and no complex hydration plumbing.
+*   All secrets stay on servers, so your islands remain zero-trust.
+*   Gradually move endpoints into Fresh route handlers when you need edge-cacheable responses; otherwise just proxy to the existing services.
+*   Deploy to Deno Deploy for the front-end + BFF (simple, pay-for-use), and keep heavier compute in your cluster.
+
+This split maximizes development velocity and lets you scale each tier independently—while keeping Fresh's standout performance advantages.
+
+## Key File References (Examples - adapt if paths differ)
+
+*   Main application entry (production): `[main.ts](mdc:main.ts)` or `[frontend/main.ts](mdc:frontend/main.ts)`
+*   Development entry: `[dev.ts](mdc:dev.ts)` or `[frontend/dev.ts](mdc:frontend/dev.ts)`
+*   Fresh configuration: `[fresh.config.ts](mdc:fresh.config.ts)` or `[frontend/fresh.config.ts](mdc:frontend/fresh.config.ts)`
+*   Deno configuration: `[deno.json](mdc:deno.json)` or `[frontend/deno.json](mdc:frontend/deno.json)`
+*   Example API route: `[routes/api/joke.ts](mdc:routes/api/joke.ts)` or `[frontend/routes/api/joke.ts](mdc:frontend/routes/api/joke.ts)`
+*   Example Page route: `[routes/index.tsx](mdc:routes/index.tsx)` or `[frontend/routes/index.tsx](mdc:frontend/routes/index.tsx)`
+*   Example Island component: `[islands/Counter.tsx](mdc:islands/Counter.tsx)` or `[frontend/islands/Counter.tsx](mdc:frontend/islands/Counter.tsx)`
+*   Global App layout: `[routes/_app.tsx](mdc:routes/_app.tsx)` or `[frontend/routes/_app.tsx](mdc:frontend/routes/_app.tsx)`

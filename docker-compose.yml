@@ -37,6 +37,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        DATABASE_URL: mysql://taskuser:taskpassword@mysql:3306/tasks_db
     ports:
       - "3000:3000"
     environment:

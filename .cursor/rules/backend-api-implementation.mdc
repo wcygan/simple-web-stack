@@ -1,0 +1,199 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Backend API Implementation Guidelines
+
+This rule documents best practices and lessons learned from implementing CRUD API endpoints in the Rust/Axum backend.
+
+## SQLx Query Patterns
+
+### Use Runtime Queries Instead of Compile-Time Macros
+
+When building with Docker or in CI environments where the database isn't available at compile time, use runtime queries instead of the `sqlx::query!` macro:
+
+**❌ Don't use compile-time queries:**
+```rust
+let task = sqlx::query_as!(
+    Task,
+    r#"SELECT id as "id: Uuid", title, completed FROM tasks WHERE id = ?"#,
+    task_id.to_string()
+)
+.fetch_one(&pool)
+.await?;
+```
+
+**✅ Do use runtime queries:**
+```rust
+use sqlx::Row; // Important: Import the Row trait
+
+let row = sqlx::query(
+    r#"SELECT id, title, completed, created_at, updated_at FROM tasks WHERE id = ?"#
+)
+.bind(task_id.to_string())
+.fetch_one(&pool)
+.await?;
+
+let task = Task {
+    id: Uuid::parse_str(row.try_get("id")?).unwrap(),
+    title: row.try_get("title")?,
+    completed: row.try_get::<i8, _>("completed")? != 0, // MySQL stores bool as TINYINT
+    created_at: row.try_get("created_at")?,
+    updated_at: row.try_get("updated_at")?,
+};
+```
+
+### Key Points:
+- Import `sqlx::Row` trait to use `try_get` methods
+- Handle MySQL boolean conversion: `row.try_get::<i8, _>("completed")? != 0`
+- Use `bind()` for query parameters
+- No need for `DATABASE_URL` at compile time
+
+## Axum Routing Syntax
+
+### Path Parameters Use Curly Braces
+
+Axum uses `{param}` syntax for path parameters, not `:param`:
+
+**❌ Incorrect:**
+```rust
+Router::new()
+    .route("/:id", get(get_task).put(update_task).delete(delete_task))
+```
+
+**✅ Correct:**
+```rust
+Router::new()
+    .route("/{id}", get(get_task).put(update_task).delete(delete_task))
+```
+
+### Complete Router Setup Example:
+```rust
+use axum::{
+    routing::{delete, get, post, put},
+    Router,
+};
+
+pub fn task_routes() -> Router<AppState> {
+    Router::new()
+        .route("/", post(create_task).get(list_tasks))
+        .route("/{id}", get(get_task).put(update_task).delete(delete_task))
+}
+
+// In main.rs:
+let app = Router::new()
+    .route("/health", get(health_check))
+    .nest("/tasks", task_routes())
+    .layer(CorsLayer::permissive())
+    .layer(TraceLayer::new_for_http())
+    .with_state(app_state);
+```
+
+## API Testing with cURL
+
+### Essential cURL Commands for Testing CRUD APIs
+
+**Create (POST):**
+```bash
+curl -X POST http://localhost:3000/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Test Task"}' | jq
+```
+
+**Read All (GET):**
+```bash
+curl http://localhost:3000/tasks | jq
+```
+
+**Read One (GET):**
+```bash
+curl http://localhost:3000/tasks/{uuid} | jq
+```
+
+**Update (PUT):**
+```bash
+curl -X PUT http://localhost:3000/tasks/{uuid} \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Updated Task", "completed": true}' | jq
+```
+
+**Delete (DELETE):**
+```bash
+curl -X DELETE http://localhost:3000/tasks/{uuid} -v
+```
+
+### Testing Tips:
+- Use `| jq` to pretty-print JSON responses
+- Use `-v` flag for verbose output to see HTTP status codes
+- Test error cases (empty strings, non-existent IDs)
+- Check Docker logs: `docker logs container_name --tail 50`
+
+## Docker Build Considerations
+
+### Avoiding SQLx Compile-Time Issues
+
+When using SQLx with Docker, avoid compile-time database dependencies:
+
+1. **Don't use** `SQLX_OFFLINE=true` without prepared queries
+2. **Don't pass** `DATABASE_URL` as a build argument
+3. **Do use** runtime queries as shown above
+
+Example [Dockerfile](mdc:backend/Dockerfile) structure:
+```dockerfile
+FROM rust:latest AS chef
+# ... cargo-chef setup ...
+
+FROM chef AS builder
+# No DATABASE_URL ARG needed!
+COPY . .
+RUN cargo build --bin backend
+
+FROM debian:bookworm-slim AS runtime
+# Runtime DATABASE_URL provided via docker-compose
+```
+
+## Error Handling Pattern
+
+Implement proper error handling with custom error types:
+
+```rust
+use axum::{http::StatusCode, response::IntoResponse, Json};
+use serde_json::json;
+
+#[derive(Debug)]
+pub enum AppError {
+    SqlxError(sqlx::Error),
+    NotFound,
+    ValidationError(String),
+}
+
+impl From<sqlx::Error> for AppError {
+    fn from(error: sqlx::Error) -> Self {
+        AppError::SqlxError(error)
+    }
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match self {
+            AppError::SqlxError(error) => match error {
+                sqlx::Error::RowNotFound => (StatusCode::NOT_FOUND, "Resource not found".to_string()),
+                _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+            },
+            AppError::NotFound => (StatusCode::NOT_FOUND, "Resource not found".to_string()),
+            AppError::ValidationError(msg) => (StatusCode::BAD_REQUEST, msg),
+        };
+
+        (status, Json(json!({"error": error_message}))).into_response()
+    }
+}
+```
+
+## Common Pitfalls to Avoid
+
+1. **SQLx Macros in Docker**: Don't use `query!` or `query_as!` macros when building in Docker
+2. **Route Syntax**: Remember Axum uses `{id}` not `:id` for path parameters
+3. **Boolean Handling**: MySQL stores booleans as TINYINT(1), convert with `!= 0`
+4. **Missing Imports**: Always import `sqlx::Row` when using runtime queries
+5. **CORS**: Don't forget to add `CorsLayer::permissive()` for frontend integration

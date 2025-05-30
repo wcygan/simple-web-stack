@@ -2,10 +2,11 @@ use axum::{routing::get, Router};
 use clap::Parser;
 use dotenvy::dotenv;
 use std::net::SocketAddr;
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod db;
+mod errors;
 mod models;
 mod routes; // Assuming routes.rs will be created next
 
@@ -58,6 +59,8 @@ async fn main() {
     // Build our application with a route
     let app = Router::new()
         .route("/health", get(routes::health_check)) // Mount health_check from routes.rs
+        .nest("/tasks", routes::task_routes())
+        .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);
 

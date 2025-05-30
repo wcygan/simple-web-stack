@@ -1,8 +1,9 @@
 use axum::{routing::get, Router};
 use clap::Parser;
+use dotenvy::dotenv;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod routes; // Assuming routes.rs will be created next
 
@@ -11,19 +12,14 @@ mod routes; // Assuming routes.rs will be created next
 #[clap(author, version, about, long_about = None)]
 struct Cli {
     /// The address to bind the server to
-    #[clap(
-        short,
-        long,
-        env = "APP_BIND_ADDRESS",
-        default_value = "127.0.0.1:3000"
-    )]
-    bind_address: String,
+    #[clap(long, env = "APP_BIND_ADDRESS", default_value = "127.0.0.1:3000")]
+    app_bind_address: String,
 
     /// Database connection string
     #[clap(
         long,
         env = "DATABASE_URL",
-        default_value = "mysql://taskuser:taskpassword@localhost:3306/tasks_db"
+        default_value = "mysql://taskuser:taskpassword@mysql:3306/tasks_db"
     )]
     database_url: String, // This will be used later
 }
@@ -31,18 +27,24 @@ struct Cli {
 #[tokio::main]
 async fn main() {
     // Load .env file
-    dotenvy::dotenv().ok();
+    dotenv().ok();
 
     // Initialize tracing subscriber
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "info,backend=debug,tower_http=debug".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .with(fmt::layer())
         .init();
 
     let cli = Cli::parse();
+
+    tracing::info!("Starting server, listening on {}", cli.app_bind_address);
+    tracing::debug!("CLI arguments: {:?}", cli);
+    // DATABASE_URL will be used later. For now, we just log it if provided.
+    if !cli.database_url.is_empty() {
+        tracing::info!("DATABASE_URL is set (will be used for DB connection later)");
+    } else {
+        tracing::warn!("DATABASE_URL is not set. This will be required for database operations.");
+    }
 
     // Build our application with a route
     let app = Router::new()
@@ -51,11 +53,11 @@ async fn main() {
 
     // Parse the bind address
     let addr: SocketAddr = cli
-        .bind_address
+        .app_bind_address
         .parse()
         .expect("Unable to parse bind address");
 
-    tracing::info!("listening on {}", addr);
+    tracing::info!("Listening on {}", addr);
 
     // Run our app with hyper
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

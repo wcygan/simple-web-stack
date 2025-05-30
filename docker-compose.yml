@@ -14,6 +14,24 @@ services:
     # Override the default command to run the development server
     command: ["deno", "task", "dev"]
 
+  mysql:
+    image: mysql:8.0
+    container_name: simple_web_stack_mysql
+    ports:
+      - "3306:3306" # Or map to a different host port like 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tasks_db
+      MYSQL_USER: taskuser
+      MYSQL_PASSWORD: taskpassword
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$${MYSQL_USER}", "-p$${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     container_name: simple_web_stack_backend
     build:
@@ -21,7 +39,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    # Optional: Add volumes for development if needed, though less common for compiled Rust
-    # volumes:
-    #   - ./backend:/usr/src/app 
-    #   Note: Ensure paths align with your Dockerfile WORKDIR and build process 
+    environment:
+      RUST_LOG: info,backend=debug,tower_http=debug
+      DATABASE_URL: mysql://taskuser:taskpassword@mysql:3306/tasks_db
+      APP_BIND_ADDRESS: 0.0.0.0:3000 # Ensure backend binds to 0.0.0.0
+    depends_on:
+      mysql:
+        condition: service_healthy
+    # volumes: # For faster iteration during development if not relying on full rebuilds
+    #   - ./backend/src:/app/src
+    #   - ./backend/Cargo.toml:/app/Cargo.toml
+    #   - ./backend/Cargo.lock:/app/Cargo.lock
+
+volumes:
+  mysql_data: 

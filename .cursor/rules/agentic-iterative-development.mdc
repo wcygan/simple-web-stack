@@ -1,0 +1,121 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Agentic Iterative Development Workflow
+
+This rule enforces an agentic, test-driven approach to development based on GPT-4.1 best practices, emphasizing incremental changes and continuous validation.
+
+## Core Principles
+
+### 1. Persistence & Completion
+Following the GPT-4.1 agentic pattern: **Always continue working until the task is fully resolved**. Don't stop at partial implementations or untested code. Each development session should result in working, tested code.
+
+### 2. Tool Usage Over Assumptions
+Before making any changes:
+- **Read existing code** to understand the current implementation
+- **Examine test files** to understand expected behavior
+- **Check related files** for dependencies and integration points
+- Never guess about code structure or functionality
+
+### 3. Incremental Development Cycle
+
+Follow this strict cycle for every change:
+
+1. **Plan** - Think through the minimal change needed
+2. **Implement** - Make the smallest possible working change
+3. **Test** - Verify the change immediately
+4. **Reflect** - Assess if the change achieved its goal
+5. **Iterate** - Move to the next small increment
+
+### 4. Testing Strategy
+
+#### Test Early, Test Often
+- After EVERY code change, no matter how small:
+  - Run relevant unit tests
+  - Check for compilation/syntax errors
+  - Verify the specific functionality changed
+  
+#### Test Command Patterns
+- Backend (Rust): `cargo test [specific_test_name]` before running full suite
+- Frontend (Deno): `deno test [specific_file]` for targeted testing
+- Integration: Run specific integration tests before full test suite
+
+### 5. Change Size Guidelines
+
+#### Maximum Change Size per Iteration
+- **Single Function**: Modify one function at a time
+- **Single Feature**: Add one small feature completely with tests
+- **Single Fix**: Address one bug with its test case
+- **Single Refactor**: Refactor one component/module at a time
+
+#### Red Flags (Changes Too Large)
+- Modifying more than 3 files without testing
+- Adding more than 50 lines of code without verification
+- Changing core logic and UI in the same iteration
+- Refactoring while adding features
+
+### 6. Debugging Approach
+
+When tests fail or issues arise:
+1. **Isolate** - Test the smallest possible unit
+2. **Instrument** - Add logging/debugging output
+3. **Verify** - Check assumptions with actual file reading
+4. **Fix** - Make minimal change to address root cause
+5. **Validate** - Ensure fix doesn't break other functionality
+
+### 7. Planning Template
+
+Before each change, explicitly state:
+```
+NEXT CHANGE:
+- What: [Specific change description]
+- Why: [Purpose and expected outcome]
+- How: [Implementation approach]
+- Test: [How to verify this change]
+- Size: [Confirm this is a small, atomic change]
+```
+
+### 8. Reflection Points
+
+After each test run:
+```
+REFLECTION:
+- Result: [What happened]
+- Expected vs Actual: [Comparison]
+- Root Cause: [If failed, why]
+- Next Step: [Immediate next action]
+```
+
+## Example Workflow
+
+```
+1. Read existing getUserById function
+2. Plan: Add input validation for userId parameter
+3. Implement: Add 3-line validation check
+4. Test: Run specific test for getUserById
+5. ✓ Passing → Move to error handling
+6. Implement: Add try-catch with proper error response
+7. Test: Run getUserById tests again
+8. ✓ Passing → Run related integration tests
+9. ✓ All passing → Consider task complete for this function
+```
+
+## Anti-Patterns to Avoid
+
+❌ Making multiple unrelated changes before testing
+❌ Implementing entire features without intermediate testing
+❌ Assuming code works without verification
+❌ Skipping tests because "it's a simple change"
+❌ Batching multiple bug fixes together
+❌ Refactoring during feature implementation
+
+## Integration with CI/CD
+
+- Run minimal test subsets during development
+- Full CI runs only after incremental changes pass
+
+## Summary
+
+**The Golden Rule**: No change is complete until it's tested. Every iteration should produce working, verified code. Think of development as a series of small, proven steps rather than large leaps.

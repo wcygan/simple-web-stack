@@ -1,0 +1,118 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Backend Development Principles
+This document outlines the core principles and requirements for the backend service of this application. Adherence to these guidelines is crucial for maintaining a consistent, robust, and testable codebase.
+
+## Core Technology Stack
+
+* **Language**: Rust
+* **Web Framework**: Axum
+* **Asynchronous Runtime**: Tokio
+* **Middleware & Services**: Tower
+* **Logging/Tracing**:
+    * `tracing` for structured, event-based logging.
+    * `tracing-subscriber` for configuring how traces are collected and processed.
+* **Serialization/Deserialization**: `serde` (and `serde_json` for JSON).
+* **Database Interaction**: `sqlx` for asynchronous, type-safe SQL queries against MySQL.
+* **Command-Line Argument Parsing**: `clap` for application configuration via CLI.
+* **Unique Identifiers**: `uuid` for generating UUIDs, especially for task IDs.
+* **Date and Time**: `chrono` for handling timestamps or any date/time related logic.
+
+## Application Requirements
+
+### API Endpoints
+* **Health Check**: Must expose a `/health` endpoint that returns a `200 OK` status if the service is operational.
+* **Task Management**: Implement CRUD (Create, Read, Update, Delete) operations for tasks.
+
+### Database
+* **Database System**: MySQL.
+* **Task Schema**:
+    * `id`: `UUID` (Primary Key)
+    * `title`: `VARCHAR` or `TEXT`
+    * `completed`: `BOOLEAN` (or `TINYINT(1)`)
+
+    *Example SQL for table creation (ensure this is managed via migrations if using them, or clearly documented):*
+    ```sql
+    CREATE TABLE IF NOT EXISTS tasks (
+        id CHAR(36) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        completed BOOLEAN NOT NULL DEFAULT FALSE,
+        -- Consider adding created_at and updated_at timestamps
+        -- created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        -- updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
+    ```
+
+## Development & Build Process
+
+### Cargo Configuration ([backend/Cargo.toml](mdc:backend/Cargo.toml))
+* Ensure all required dependencies (Axum, Tokio, Tower, Tracing, Tracing-Subscriber, Serde, Sqlx (with `mysql`, `runtime-tokio-rustls`, `uuid`, `chrono` features), Clap, uuid, chrono) are listed.
+* For learning purposes, **do not** use the `--release` flag when building or running the application locally or in early CI stages.
+
+### Dockerization ([backend/Dockerfile](mdc:backend/Dockerfile) and [docker-compose.yml](mdc:docker-compose.yml))
+* The application **must** be runnable within a Docker container.
+* **Dockerfile Best Practices**:
+    * Utilize **Docker Layer Caching**. This typically involves:
+        1.  Copying `Cargo.toml` and `Cargo.lock`.
+        2.  Creating a dummy `src/main.rs` or `src/lib.rs`.
+        3.  Running `cargo build --locked` (or a similar command that only builds dependencies) to cache the dependency layer.
+        4.  Copying the rest of the source code.
+        5.  Running the final `cargo build`.
+    * Use an appropriate base image (e.g., `rust:<version>-slim` or `debian-slim` with Rust installed).
+    * Expose the correct port (e.g., 3000).
+* **Docker Compose**: The `docker-compose.yml` should define the backend service and its dependencies (like the MySQL database).
+* **Running Instructions**: Provide clear, step-by-step instructions on how to build and run the *entire application stack* (including the backend and database) using Docker (e.g., `docker-compose up --build`).
+
+## Testing Strategy
+
+### Unit Tests
+* All core logic, helper functions, and non-trivial pieces of code **must** have corresponding unit tests.
+* Unit tests should be co-located with the code they are testing (e.g., in `mod tests {}` blocks within the `.rs` files).
+* Focus on testing individual components in isolation.
+
+### Integration Tests
+* Integration tests **must** be written to verify the interaction between the API and the MySQL database.
+* Utilize **Testcontainers-rs** (`testcontainers` crate) to spin up a MySQL container for each test run or test suite. This ensures tests run against a clean, isolated database instance.
+* Tests should cover:
+    * Successful creation, retrieval, updating, and deletion of tasks.
+    * Edge cases and error handling (e.g., task not found, invalid input).
+    * Correct HTTP status codes and response bodies.
+* Integration tests are typically located in the `tests/` directory at the root of the `backend` crate.
+
+## Code Style & Quality
+
+* Follow standard Rust conventions and idioms (`rustfmt` should be used).
+* Employ `clippy` for linting and enforcing best practices.
+* Use the `tracing` crate for logging. Ensure logs are structured and provide meaningful information for debugging and monitoring.
+* Implement robust error handling using Rust's `Result` type and map errors to appropriate HTTP status codes in Axum handlers.
+
+## Example File Structure (Illustrative)
+
+backend/
+├── Cargo.toml
+├── Dockerfile
+├── src/
+│   ├── main.rs         # Application entry point, Axum router setup
+│   ├── routes.rs       # Route handlers (e.g., task_routes.rs)
+│   ├── models.rs       # Data structures (e.g., Task model with Serde, Sqlx derive)
+│   ├── db.rs           # Database connection pool and query logic
+│   └── errors.rs       # Custom error types
+├── tests/
+│   ├── health_check.rs # Integration test for the health check
+│   └── tasks_api.rs    # Integration tests for task CRUD operations using Testcontainers
+└── .env.example        # Example environment variables (DB_URL, etc.)
+
+
+## Running the Backend Application with Docker
+
+1.  **Prerequisites**: Docker and Docker Compose installed.
+2.  **Navigate**: Open a terminal in the root directory of the project.
+3.  **Build & Run**:
+    ```bash
+    docker-compose up --build backend # Or simply 'docker-compose up --build' for all services
+    ```
+4.  The backend service should then be accessible at `http://localhost:3000` (or the port configured in `docker-compose.yml`).
+5.  The health check endpoint will be at `http://localhost:3000/health`.

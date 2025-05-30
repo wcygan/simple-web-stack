@@ -1,5 +1,4 @@
 import { type Task } from "../types.ts";
-import { JSX } from "preact";
 
 export interface TaskItemProps {
   task: Task;
@@ -10,9 +9,7 @@ export interface TaskItemProps {
 export default function TaskItem(
   { task, onToggleComplete, onDeleteTask }: TaskItemProps,
 ) {
-  const handleCheckboxChange = (
-    e: JSX.TargetedEvent<HTMLInputElement, Event>,
-  ) => {
+  const handleCheckboxChange = () => {
     onToggleComplete(task.id);
   };
 
@@ -46,6 +43,7 @@ export default function TaskItem(
         </span>
       </div>
       <button
+        type="button"
         onClick={handleDeleteClick}
         class="ml-4 px-3 py-1 text-sm text-red-500 hover:text-red-700 border border-red-300 hover:border-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:outline-none focus:ring-2 focus:ring-red-400"
         aria-label={`Delete task ${task.title}`}

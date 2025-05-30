@@ -5,7 +5,7 @@ const BACKEND_API = "http://backend:3000";
 
 export const handler = define.handlers({
   // GET /api/tasks - List all tasks
-  async GET(ctx) {
+  async GET(_ctx) {
     try {
       const response = await fetch(`${BACKEND_API}/tasks`);
       const data = await response.json();

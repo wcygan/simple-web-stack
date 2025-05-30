@@ -1,4 +1,4 @@
-import { Signal, signal } from "@preact/signals";
+import { Signal } from "@preact/signals";
 import { Task } from "../types.ts";
 import { Button } from "../components/Button.tsx";
 

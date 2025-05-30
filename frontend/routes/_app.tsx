@@ -1,4 +1,4 @@
-import { type ComponentChildren, type ComponentType } from "preact";
+import { type ComponentType } from "preact";
 
 interface MyAppProps {
   Component: ComponentType<unknown>; // A generic Preact component

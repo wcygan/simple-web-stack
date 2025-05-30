@@ -1,0 +1,86 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Deno Fresh 2 Idioms and Best Practices
+
+This document outlines key patterns and solutions discovered for working effectively with Deno Fresh 2, particularly with recent alpha versions.
+
+## 1. `_app.tsx` Structure and Typing
+
+The main application wrapper `[routes/_app.tsx](mdc:frontend/routes/_app.tsx)` should be structured as follows:
+
+```tsx
+import { type ComponentType } from "preact"; // Import ComponentType from preact
+
+// Define a local interface for props
+interface MyAppProps {
+  Component: ComponentType<unknown>; // The page component to render
+  // state: Record<string, unknown>; // If using route-specific state passed to _app
+}
+
+export default function App({ Component }: MyAppProps) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* You can manage title and other head elements via props.state if needed */}
+        <title>My Fresh App</title> 
+        <link rel="stylesheet" href="/styles.css" />
+      </head>
+      <body>
+        <Component /> { /* Render the active page component */}
+      </body>
+    </html>
+  );
+}
+```
+
+- **Key takeaway**: Directly import `ComponentType` from `"preact"` and define a specific props interface for `_app.tsx`. Avoid using `FreshContext` to render `ctx.Component` here, and `AppProps` might not be available or appropriate from the bare `"fresh"` import for `_app.tsx`.
+
+## 2. Importing Fresh Core Modules (e.g., Types)
+
+When your `[deno.json](mdc:frontend/deno.json)` maps `"fresh"` to a JSR package (e.g., `"fresh": "jsr:@fresh/core@^2.0.0-alpha.34"`):
+
+- To import types like `Handlers`, `PageProps`, or other utilities from Fresh, use the bare specifier `"fresh"`:
+  ```typescript
+  import { type Handlers, type PageProps } from "fresh";
+  ```
+- The JSR package `@fresh/core` (as of `2.0.0-alpha.34`) does **not** export a `./mod.ts`. The primary exports are available directly from the root of the mapped `"fresh"` import.
+
+## 3. Island and Component Structure
+
+- **Islands**: Interactive components requiring client-side JavaScript **must** be in their own files within the `islands/` directory (e.g., `[islands/TodoApp.tsx](mdc:frontend/islands/TodoApp.tsx)`).
+- **Static Components**: Reusable UI pieces that do **not** require client-side interactivity should be in their own files within the `components/` directory (e.g., `[components/TaskList.tsx](mdc:frontend/components/TaskList.tsx)`).
+- **Avoid Inline Definitions**: Do not define components or islands inline within other files if they are intended to be standalone, reusable, or are islands themselves. This can lead to import conflicts and organizational issues.
+  - For example, ensure `TodoApp.tsx` imports `AddTaskFormIsland.tsx` from `./AddTaskFormIsland.tsx` rather than defining `AddTaskFormIsland` within `TodoApp.tsx`.
+
+## 4. `deno.json` Configuration for JSX
+
+Ensure your `[deno.json](mdc:frontend/deno.json)` includes the following `compilerOptions` for automatic JSX transform, which is standard for modern Fresh projects:
+
+```json
+{
+  // ... other configurations ...
+  "compilerOptions": {
+    "jsx": "precompile", // Or "react-jsx" for older Deno/Fresh versions
+    "jsxImportSource": "preact"
+  },
+  "imports": {
+    "fresh": "jsr:@fresh/core@^2.0.0-alpha.34",
+    // ... other imports ...
+  }
+}
+```
+
+This setup eliminates the need for `/** @jsx h */` pragmas and `import { h } from "preact";` in your `.tsx` files.
+
+## 5. Resolving Linter/Runtime Import Errors
+
+- **JSR Package Not Found**: If the linter/runtime reports a JSR package (e.g., `@fresh/core`) as not installed despite it being in `deno.json`'s imports:
+    - Try running `deno cache --reload your-entry-point.ts` (e.g., `frontend/main.ts` or `frontend/dev.ts`).
+    - Restart the Deno Language Server in your IDE.
+    - Ensure your Deno version is up-to-date and compatible with the Fresh version being used.
+- **Unknown Export from JSR Package**: If an error like `Unknown export './mod.ts' for '@fresh/core@...'` occurs, it means the specific path (e.g., `fresh/mod.ts`) is incorrect. Check the JSR package's actual exports (often listed in the error message) and adjust the import path (e.g., to just `fresh`).

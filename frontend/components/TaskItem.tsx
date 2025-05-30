@@ -29,7 +29,7 @@ export default function TaskItem({ task, onToggleComplete, onDeleteTask }: TaskI
           type="checkbox"
           checked={task.completed}
           onChange={handleCheckboxChange}
-          class="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer mr-3"
+          class="h-5 w-5 text-indigo-600 border-gray-500 rounded focus:ring-indigo-500 cursor-pointer mr-3"
         />
         <span class={`text-lg ${task.completed ? "line-through text-gray-500" : "text-gray-700"}`}>
           {task.title}

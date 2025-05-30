@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <div class="container mx-auto px-4 py-8 max-w-2xl">
       <header class="text-center mb-12">
-        <h1 class="text-5xl font-bold text-gray-800 fresh-gradient bg-clip-text text-transparent">
+        <h1 class="text-5xl font-bold text-gray-700">
           My Todo List
         </h1>
       </header>

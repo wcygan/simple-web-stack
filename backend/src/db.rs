@@ -22,7 +22,7 @@ pub async fn create_pool(database_url: &str) -> Result<MySqlPool, sqlx::Error> {
 pub async fn init_db(pool: &MySqlPool) -> Result<(), sqlx::Error> {
     tracing::info!("Initializing database schema");
 
-    // Create tasks table if it doesn't exist
+    // Create the tasks table if it doesn't exist
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS tasks (

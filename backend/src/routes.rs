@@ -6,6 +6,7 @@ use axum::{
     Router,
 };
 use serde_json::{json, Value};
+use sqlx::mysql::MySqlRow;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -14,6 +15,17 @@ use crate::{
     errors::AppError,
     models::{CreateTaskPayload, Task, UpdateTaskPayload},
 };
+
+/// Helper function to convert a database row to a Task
+fn row_to_task(row: &MySqlRow) -> Result<Task, sqlx::Error> {
+    Ok(Task {
+        id: Uuid::parse_str(row.try_get("id")?).unwrap(),
+        title: row.try_get("title")?,
+        completed: row.try_get::<i8, _>("completed")? != 0,
+        created_at: row.try_get("created_at")?,
+        updated_at: row.try_get("updated_at")?,
+    })
+}
 
 pub async fn health_check() -> (StatusCode, Json<Value>) {
     tracing::info!("Health check endpoint called");
@@ -60,13 +72,7 @@ pub async fn create_task(
     .fetch_one(&app_state.pool)
     .await?;
 
-    let task = Task {
-        id: Uuid::parse_str(row.try_get("id")?).unwrap(),
-        title: row.try_get("title")?,
-        completed: row.try_get::<i8, _>("completed")? != 0,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    };
+    let task = row_to_task(&row)?;
 
     tracing::info!("Task created successfully with id: {}", task_id);
     Ok((StatusCode::CREATED, Json(task)))
@@ -90,13 +96,7 @@ pub async fn get_task(
     .fetch_one(&app_state.pool)
     .await?;
 
-    let task = Task {
-        id: Uuid::parse_str(row.try_get("id")?).unwrap(),
-        title: row.try_get("title")?,
-        completed: row.try_get::<i8, _>("completed")? != 0,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    };
+    let task = row_to_task(&row)?;
 
     Ok(Json(task))
 }
@@ -116,16 +116,8 @@ pub async fn list_tasks(State(app_state): State<AppState>) -> Result<Json<Vec<Ta
     .await?;
 
     let tasks: Vec<Task> = rows
-        .into_iter()
-        .map(|row| {
-            Ok(Task {
-                id: Uuid::parse_str(row.try_get("id")?).unwrap(),
-                title: row.try_get("title")?,
-                completed: row.try_get::<i8, _>("completed")? != 0,
-                created_at: row.try_get("created_at")?,
-                updated_at: row.try_get("updated_at")?,
-            })
-        })
+        .iter()
+        .map(row_to_task)
         .collect::<Result<Vec<_>, sqlx::Error>>()?;
 
     tracing::info!("Found {} tasks", tasks.len());
@@ -192,13 +184,7 @@ pub async fn update_task(
     .fetch_one(&app_state.pool)
     .await?;
 
-    let task = Task {
-        id: Uuid::parse_str(row.try_get("id")?).unwrap(),
-        title: row.try_get("title")?,
-        completed: row.try_get::<i8, _>("completed")? != 0,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    };
+    let task = row_to_task(&row)?;
 
     tracing::info!("Task updated successfully");
     Ok(Json(task))
@@ -230,3 +216,4 @@ pub fn task_routes() -> Router<AppState> {
         .route("/", post(create_task).get(list_tasks))
         .route("/{id}", get(get_task).put(update_task).delete(delete_task))
 }
+

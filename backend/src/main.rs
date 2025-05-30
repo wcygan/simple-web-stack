@@ -8,7 +8,7 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 mod db;
 mod errors;
 mod models;
-mod routes; // Assuming routes.rs will be created next
+mod routes;
 
 use db::{create_pool, init_db, AppState};
 
@@ -26,7 +26,7 @@ struct Cli {
         env = "DATABASE_URL",
         default_value = "mysql://taskuser:taskpassword@mysql:3306/tasks_db"
     )]
-    database_url: String, // This will be used later
+    database_url: String,
 }
 
 #[tokio::main]
@@ -34,7 +34,7 @@ async fn main() {
     // Load .env file
     dotenv().ok();
 
-    // Initialize tracing subscriber
+    // Initialize tracing subscriber with info logging
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(fmt::layer())
@@ -45,7 +45,7 @@ async fn main() {
     tracing::info!("Starting server, listening on {}", cli.app_bind_address);
     tracing::debug!("CLI arguments: {:?}", cli);
 
-    // Create database connection pool
+    // Create the database connection pool
     let pool = create_pool(&cli.database_url)
         .await
         .expect("Failed to create database pool");
@@ -53,7 +53,7 @@ async fn main() {
     // Initialize database schema
     init_db(&pool).await.expect("Failed to initialize database");
 
-    // Create application state
+    // Create the application state
     let app_state = AppState { pool };
 
     // Build our application with a route
@@ -71,8 +71,6 @@ async fn main() {
         .expect("Unable to parse bind address");
 
     tracing::info!("Listening on {}", addr);
-
-    // Run our app with hyper
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

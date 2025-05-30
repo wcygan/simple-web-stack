@@ -19,11 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./backend
+        working-directory: ./
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
 
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -34,12 +39,15 @@ jobs:
 
       - name: Check formatting (Rustfmt)
         run: cargo fmt --all -- --check
+        working-directory: ./backend
 
       - name: Lint with Clippy
         run: cargo clippy -- -D warnings # Fail on warnings
+        working-directory: ./backend
 
       - name: Build backend
         run: cargo build --verbose # No --release for CI as per your rules
+        working-directory: ./backend
 
-      - name: Run tests
-        run: cargo test --verbose # Runs tests defined in the Rust project
+      - name: Run tests using project test strategy
+        run: deno task test:backend # Uses the optimized parallel testing strategy

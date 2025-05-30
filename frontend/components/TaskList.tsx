@@ -3,16 +3,23 @@ import TaskItem from "./TaskItem.tsx";
 
 export interface TaskListProps {
   tasks: Task[];
+  onToggleComplete: (id: string) => void;
+  onDeleteTask: (id: string) => void;
 }
 
-export default function TaskList({ tasks }: TaskListProps) {
+export default function TaskList({ tasks, onToggleComplete, onDeleteTask }: TaskListProps) {
   if (tasks.length === 0) {
-    return <p class="text-gray-500 italic">No tasks yet. Add one below!</p>;
+    return <p class="text-center text-gray-500 italic py-4">No tasks yet. Add one above!</p>;
   }
   return (
-    <ul class="list-none p-0 m-0">
+    <ul class="space-y-3">
       {tasks.map((task) => (
-        <TaskItem key={task.id} task={task} />
+        <TaskItem 
+          key={task.id} 
+          task={task} 
+          onToggleComplete={onToggleComplete} 
+          onDeleteTask={onDeleteTask} 
+        />
       ))}
     </ul>
   );

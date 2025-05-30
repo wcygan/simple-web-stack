@@ -2,15 +2,17 @@ import TodoApp from "../islands/TodoApp.tsx";
 
 export default function Home() {
   return (
-    <div class="px-4 py-8 mx-auto max-w-screen-md">
-      <header class="mb-8 text-center">
-        <h1 class="text-4xl font-bold text-gray-800">My Todo List</h1>
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+      <header class="text-center mb-12">
+        <h1 class="text-5xl font-bold text-gray-800 fresh-gradient bg-clip-text text-transparent">
+          My Todo List
+        </h1>
       </header>
       <main>
         <TodoApp />
       </main>
-      <footer class="mt-12 text-center text-gray-500 text-sm">
-        <p>Powered by Deno Fresh & Tailwind CSS</p>
+      <footer class="text-center mt-12 text-gray-600">
+        <p>&copy; {new Date().getFullYear()} Todo App. Built with Fresh.</p>
       </footer>
     </div>
   );

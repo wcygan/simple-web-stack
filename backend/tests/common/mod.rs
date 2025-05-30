@@ -1,7 +1,10 @@
 use axum::Router;
 use once_cell::sync::Lazy;
 use sqlx::{mysql::MySqlPoolOptions, MySqlPool};
-use std::sync::Mutex;
+use std::sync::{
+    atomic::{AtomicU32, Ordering},
+    Mutex,
+};
 use testcontainers::runners::AsyncRunner;
 use testcontainers::{ContainerAsync, ImageExt};
 use testcontainers_modules::mysql::Mysql;
@@ -14,6 +17,9 @@ use backend::routes;
 
 // Shared container state
 static CONTAINER: Lazy<Mutex<Option<ContainerState>>> = Lazy::new(|| Mutex::new(None));
+
+// Database allocation counter for parallel database isolation
+static DB_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 struct ContainerState {
     _container: ContainerAsync<Mysql>,
@@ -39,13 +45,16 @@ pub fn build_app(app_state: AppState) -> Router {
 
 // Initialize the shared container
 async fn ensure_container() -> u16 {
-    let mut container_guard = CONTAINER.lock().unwrap();
-
-    if let Some(ref state) = *container_guard {
-        return state.port;
+    // First, check if container already exists (quick check with dropped guard)
+    {
+        let container_guard = CONTAINER.lock().unwrap();
+        if let Some(ref state) = *container_guard {
+            return state.port;
+        }
+        // Guard is dropped here when scope ends
     }
 
-    // Start MySQL container only once
+    // Start MySQL container only once (without holding the lock)
     let container = Mysql::default()
         .with_env_var("MYSQL_ROOT_PASSWORD", "root")
         .with_env_var("MYSQL_DATABASE", "test_db")
@@ -60,13 +69,52 @@ async fn ensure_container() -> u16 {
         .await
         .expect("Failed to get MySQL port");
 
-    *container_guard = Some(ContainerState {
-        _container: container,
-        port,
-    });
+    // Wait for MySQL to be ready with retry logic
+    let root_url = format!("mysql://root:root@127.0.0.1:{}/mysql", port);
+    let mut attempts = 0;
+    const MAX_ATTEMPTS: u32 = 10;
 
-    // Give MySQL a moment to fully initialize
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    loop {
+        attempts += 1;
+
+        match MySqlPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(std::time::Duration::from_secs(10))
+            .connect(&root_url)
+            .await
+        {
+            Ok(pool) => {
+                pool.close().await;
+                break;
+            }
+            Err(e) if attempts < MAX_ATTEMPTS => {
+                eprintln!(
+                    "MySQL not ready yet (attempt {}/{}): {}",
+                    attempts, MAX_ATTEMPTS, e
+                );
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+            Err(e) => {
+                panic!(
+                    "Failed to connect to MySQL after {} attempts: {}",
+                    MAX_ATTEMPTS, e
+                );
+            }
+        }
+    }
+
+    // Now acquire the lock again to store the result
+    {
+        let mut container_guard = CONTAINER.lock().unwrap();
+        // Double-check that another thread didn't create it while we were working
+        if container_guard.is_none() {
+            *container_guard = Some(ContainerState {
+                _container: container,
+                port,
+            });
+        }
+        // Guard is dropped here
+    }
 
     port
 }
@@ -76,13 +124,16 @@ pub async fn spawn_app() -> TestApp {
     // Get or create the shared container
     let db_port = ensure_container().await;
 
-    // Create unique database for this test to ensure isolation
-    let db_name = format!("test_{}", Uuid::new_v4().to_string().replace("-", "_"));
+    // Create unique database using atomic counter + UUID for better isolation
+    let db_counter = DB_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let db_uuid = Uuid::new_v4().to_string().replace("-", "");
+    let db_name = format!("test_{}_{}", db_counter, &db_uuid[..8]);
 
     // Connect as root to create the test database
     let root_url = format!("mysql://root:root@127.0.0.1:{}/mysql", db_port);
     let root_pool = MySqlPoolOptions::new()
         .max_connections(1)
+        .acquire_timeout(std::time::Duration::from_secs(10))
         .connect(&root_url)
         .await
         .expect("Failed to connect to MySQL");
@@ -111,13 +162,15 @@ pub async fn spawn_app() -> TestApp {
     // Close root connection
     root_pool.close().await;
 
-    // Connect to the test database
+    // Connect to the test database with optimized pool settings
     let database_url = format!(
         "mysql://test_user:test_pass@127.0.0.1:{}/{}",
         db_port, db_name
     );
     let db_pool = MySqlPoolOptions::new()
-        .max_connections(5)
+        .max_connections(3) // Reduced for better resource management
+        .acquire_timeout(std::time::Duration::from_secs(10))
+        .idle_timeout(std::time::Duration::from_secs(30)) // Cleanup idle connections
         .connect(&database_url)
         .await
         .expect("Failed to connect to test database");

@@ -1,0 +1,6 @@
+[env]
+# Test configuration - use scripts/test.ts for optimal parallel/sequential execution
+# This file no longer sets RUST_TEST_THREADS globally to allow flexible test execution
+
+# Optionally set test timeout for integration tests
+RUST_TEST_TIME_INTEGRATION = "30" 

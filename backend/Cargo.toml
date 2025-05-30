@@ -1,3 +1,10 @@
+# Backend Service
+# 
+# Test Execution Strategy:
+# - Unit tests: Run in parallel (cargo test --lib -- --test-threads=0)
+# - Integration tests: Run sequentially (cargo test --test '*' -- --test-threads=1)
+# - All tests: Use custom script for optimal execution
+
 [package]
 name = "backend"
 version = "0.1.0"

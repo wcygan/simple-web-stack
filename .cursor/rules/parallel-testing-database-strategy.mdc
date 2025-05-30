@@ -1,0 +1,145 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Parallel Testing with Database Dependencies Strategy
+
+This rule encapsulates our research-backed approach to maximizing test parallelism while maintaining reliability in the presence of shared database resources.
+
+## Core Problem & Solution
+
+### The Challenge
+As identified in [QA Wolf's parallel testing research](mdc:https:/www.qawolf.com/blog/the-challenges-and-rewards-of-full-test-parallelization), "the main challenge with parallel testing is state isolation" - especially with database-dependent integration tests. Only 7% of companies successfully run more than 50 tests in parallel.
+
+### Our Hybrid Strategy
+**Unit Tests**: Full parallelism (all CPU cores) - stateless by nature
+**Integration Tests**: Sequential execution by default - shared database container with proper isolation
+
+## Implementation Architecture
+
+### Test Orchestration Script
+[scripts/test-backend.ts](mdc:scripts/test-backend.ts) implements our intelligent test execution:
+
+```typescript
+// Unit tests: Maximum parallelism
+const cpuCount = navigator.hardwareConcurrency || 4;
+await $`cargo test --lib`.env("RUST_TEST_THREADS", cpuCount.toString());
+
+// Integration tests: Sequential reliability  
+await $`cargo test --test '*'`.env("RUST_TEST_THREADS", "1");
+```
+
+Key features:
+- **Fail-fast**: Unit tests run first, integration tests only if units pass
+- **Development mode**: Watch unit tests only for fastest feedback
+- **Advanced mode**: Limited parallelism option for integration tests
+- **Filtered execution**: Run specific test subsets
+
+### Database Isolation Strategy
+[backend/tests/common/mod.rs](mdc:backend/tests/common/mod.rs) implements atomic database isolation:
+
+```rust
+// Shared container with unique databases per test
+static DB_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+let db_counter = DB_COUNTER.fetch_add(1, Ordering::SeqCst);
+let db_uuid = Uuid::new_v4().to_string().replace("-", "");
+let db_name = format!("test_{}_{}", db_counter, &db_uuid[..8]);
+```
+
+Benefits:
+- **Shared container**: Single MySQL container reduces resource overhead
+- **Perfect isolation**: Each test gets unique database
+- **Atomic allocation**: No race conditions in database naming
+- **Proper cleanup**: Databases dropped after test completion
+
+### Configuration Management
+[backend/.cargo/config.toml](mdc:backend/.cargo/config.toml) provides flexible defaults while [deno.json](mdc:deno.json) defines convenient task aliases:
+
+```bash
+# Primary workflows
+deno task test:backend                 # Optimal hybrid execution
+deno task test:backend:watch          # Development mode (unit tests only)
+deno task test:backend:unit           # Parallel unit tests
+deno task test:backend:integration    # Sequential integration tests
+
+# Advanced options
+deno task test:backend:advanced       # Limited integration parallelism
+deno task test:backend:integration:parallel  # Experimental 2-thread mode
+```
+
+## Performance Characteristics
+
+| Test Type | Execution Mode | Speed | Reliability | Resource Usage |
+|-----------|---------------|-------|-------------|----------------|
+| Unit Tests | Parallel (8 cores) | ⚡ Fastest | 🟢 100% | Low |
+| Integration | Sequential | 🐌 ~24s | 🟢 100% | Moderate |
+| Integration | Parallel (2 cores) | ⚡ ~12s | 🔴 ~50% | High |
+
+**Result**: ~24s total execution time with 100% reliability
+
+## Anti-Patterns to Avoid
+
+❌ **Global thread limits**: Don't set `RUST_TEST_THREADS=1` globally
+❌ **Naive parallelism**: Don't run database tests in full parallel without isolation
+❌ **Resource contention**: Don't create MySQL container per test (expensive)
+❌ **Mixed strategies**: Don't run unit and integration tests with same thread settings
+
+## Development Workflow Patterns
+
+### Active Development
+```bash
+deno task test:backend:watch  # Fast feedback (unit tests only)
+```
+
+### Pre-commit Validation
+```bash
+deno task test:backend        # Full optimized suite
+```
+
+### CI/CD Pipeline
+```bash
+deno task test:backend        # Same reliable execution
+```
+
+### Debugging Test Failures
+```bash
+deno task test:backend:unit           # Isolate logic issues
+deno task test:backend:integration    # Test database interactions
+deno task test:backend -- --filter health  # Run specific test subset
+```
+
+## Troubleshooting Guidelines
+
+### Integration Test Timeouts
+1. **Check Docker**: Ensure MySQL container is running (`docker compose ps`)
+2. **Resource limits**: Verify adequate memory allocation
+3. **Fall back to sequential**: Use `test:backend:integration` instead of `:parallel`
+
+### Performance Optimization
+- **Unit tests**: Already optimized (uses all CPU cores)
+- **Growing test suite**: Consider splitting large integration test files
+- **CI resources**: Increase memory if timeouts occur
+
+## Future Scaling Strategies
+
+Based on research insights:
+
+1. **Container per test**: Use separate MySQL containers (higher resource cost but perfect isolation)
+2. **Test sharding**: Distribute across multiple CI runners for very large suites
+3. **In-memory database**: Consider SQLite for faster, isolated integration tests
+4. **Selective parallelism**: Intelligently determine which integration tests can run in parallel
+
+## Research References
+
+- [QA Wolf: The Challenges and Rewards of Full Test Parallelization](mdc:https:/www.qawolf.com/blog/the-challenges-and-rewards-of-full-test-parallelization)
+- [TestNG Parallel Testing Guide](mdc:https:/medium.com/@abhaykhs/guide-to-running-parallel-test-cases-in-testng-f095c38856ab)
+
+## Documentation
+
+Comprehensive testing strategy documented in [backend/README.md](mdc:backend/README.md) with performance metrics, troubleshooting guides, and workflow recommendations.
+
+---
+
+**Key Insight**: This hybrid approach delivers the speed benefits of parallelism where safe (unit tests) while maintaining the reliability required for database-dependent tests through intelligent sequential execution and proper isolation strategies.

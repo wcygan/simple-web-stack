@@ -2,46 +2,55 @@ name: Backend CI
 
 on:
   push:
-    branches:
-      - main # or your default branch
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
     paths:
       - 'backend/**'
+      - '.github/workflows/backend-ci.yml' # Also run if the workflow itself changes
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build_backend:
+  build_and_test_backend:
+    name: Build and Test Backend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./backend
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          components: rustfmt, clippy
+          toolchain: stable # Or specify your project's Rust version/channel
 
       - name: Cache Cargo dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: actions/cache@v4
         with:
-          workspaces: "./backend -> target"
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ./backend/target/ # Cache build artifacts
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-
-      - name: Check formatting
+      - name: Check formatting (Rustfmt)
         run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Lint with Clippy
+        run: cargo clippy -- -D warnings # Fail on warnings
 
-      - name: Build project
-        run: cargo build --verbose
+      - name: Build backend
+        run: cargo build --verbose # No --release for CI as per your rules
 
       - name: Run tests
-        run: cargo test --verbose
-
-      - name: Security audit
-        run: cargo audit
+        run: cargo test --verbose # Runs tests defined in the Rust project

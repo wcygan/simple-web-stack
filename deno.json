@@ -2,7 +2,8 @@
     "tasks": {
         "up": "docker compose up -d --build",
         "down": "docker compose down",
-        "ci": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net scripts/run-ci.ts",
+        "ci:backend": "./scripts/run-backend-ci-locally.sh",
+        "ci:frontend": "./scripts/run-frontend-ci-locally.sh",
         "test:backend": "cd backend && ./test_runner.ts",
         "docker:ps": "docker compose ps"
     },

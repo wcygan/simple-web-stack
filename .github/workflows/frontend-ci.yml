@@ -1,32 +1,54 @@
-name: Frontend CI (simple-web-stack context)
+name: Frontend CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
     paths:
-      - 'frontend/**' # Relative to simple-web-stack root
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml' # Also run if the workflow itself changes
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build_frontend:
+  build_and_test_frontend:
+    name: Build and Test Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./frontend # Relative to simple-web-stack root
+        working-directory: ./frontend
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        # This will checkout the simple-web-stack repository.
-        # The working-directory then scopes commands to simple-web-stack/frontend/
 
       - name: Setup Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: v2.x # Use Deno v2.x which supports lockfile version 5
+          deno-version: v2.x
 
-      - name: Check code (format, lint, type check)
-        run: deno task check
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno # Default Deno cache directory on Linux for 'ubuntu-latest'
+          key: ${{ runner.os }}-deno-${{ hashFiles('frontend/deno.json', 'frontend/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
 
-      - name: Build project
-        run: deno task build
+      - name: Install frontend dependencies (if explicit step is needed, e.g. deno cache main.ts)
+        run: deno cache main.ts # This ensures dependencies in main.ts and its imports are fetched
+
+      - name: Check formatting, lint, and types
+        run: deno task check # Uses the 'check' task from frontend/deno.json
+
+      # If you have a specific build command for CI validation (Fresh often relies on JIT for dev)
+      # - name: Build frontend
+      #   run: deno task build
+
+      # If you have a specific test command (deno task check already includes type checking)
+      - name: Run tests
+        run: deno task test

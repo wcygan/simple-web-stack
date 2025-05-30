@@ -14,9 +14,15 @@
             "problemMatcher": []
         },
         {
-            "label": "deno: ci",
+            "label": "deno: ci:backend",
             "type": "shell",
-            "command": "deno task ci",
+            "command": "deno task ci:backend",
+            "problemMatcher": []
+        },
+        {
+            "label": "deno: ci:frontend",
+            "type": "shell",
+            "command": "deno task ci:frontend",
             "problemMatcher": []
         },
         {

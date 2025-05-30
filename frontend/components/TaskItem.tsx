@@ -7,8 +7,12 @@ export interface TaskItemProps {
   onDeleteTask: (id: string) => void;
 }
 
-export default function TaskItem({ task, onToggleComplete, onDeleteTask }: TaskItemProps) {
-  const handleCheckboxChange = (e: JSX.TargetedEvent<HTMLInputElement, Event>) => {
+export default function TaskItem(
+  { task, onToggleComplete, onDeleteTask }: TaskItemProps,
+) {
+  const handleCheckboxChange = (
+    e: JSX.TargetedEvent<HTMLInputElement, Event>,
+  ) => {
     onToggleComplete(task.id);
   };
 
@@ -19,9 +23,11 @@ export default function TaskItem({ task, onToggleComplete, onDeleteTask }: TaskI
   };
 
   return (
-    <li 
-      class={`flex items-center justify-between p-4 rounded-lg transition-all duration-200 ease-in-out group shadow-sm hover:shadow-md ${ 
-        task.completed ? "bg-green-50 border-l-4 border-green-500" : "bg-white border-l-4 border-transparent"
+    <li
+      class={`flex items-center justify-between p-4 rounded-lg transition-all duration-200 ease-in-out group shadow-sm hover:shadow-md ${
+        task.completed
+          ? "bg-green-50 border-l-4 border-green-500"
+          : "bg-white border-l-4 border-transparent"
       }`}
     >
       <div class="flex items-center">
@@ -31,7 +37,11 @@ export default function TaskItem({ task, onToggleComplete, onDeleteTask }: TaskI
           onChange={handleCheckboxChange}
           class="h-5 w-5 text-indigo-600 border-gray-500 rounded focus:ring-indigo-500 cursor-pointer mr-3"
         />
-        <span class={`text-lg ${task.completed ? "line-through text-gray-500" : "text-gray-700"}`}>
+        <span
+          class={`text-lg ${
+            task.completed ? "line-through text-gray-500" : "text-gray-700"
+          }`}
+        >
           {task.title}
         </span>
       </div>
@@ -44,4 +54,4 @@ export default function TaskItem({ task, onToggleComplete, onDeleteTask }: TaskI
       </button>
     </li>
   );
-} 
+}

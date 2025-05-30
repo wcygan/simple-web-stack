@@ -12,7 +12,9 @@ export function Button(props: ButtonProps) {
       {...props}
       type={props.type || "button"} // Default to "button" if not specified
       // The disabled attribute will be passed through by {...props}
-      class={`px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-700 disabled:opacity-50 ${props.class ?? ""}`}
+      class={`px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-700 disabled:opacity-50 ${
+        props.class ?? ""
+      }`}
     />
   );
 }

@@ -10,7 +10,7 @@ export const handler = define.handlers({
       const id = ctx.params.id;
       const response = await fetch(`${BACKEND_API}/tasks/${id}`);
       const data = await response.json();
-      
+
       return new Response(JSON.stringify(data), {
         status: response.status,
         headers: {
@@ -24,7 +24,7 @@ export const handler = define.handlers({
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
   },
@@ -34,7 +34,7 @@ export const handler = define.handlers({
     try {
       const id = ctx.params.id;
       const body = await ctx.req.text();
-      
+
       const response = await fetch(`${BACKEND_API}/tasks/${id}`, {
         method: "PUT",
         headers: {
@@ -42,9 +42,9 @@ export const handler = define.handlers({
         },
         body,
       });
-      
+
       const data = await response.json();
-      
+
       return new Response(JSON.stringify(data), {
         status: response.status,
         headers: {
@@ -58,7 +58,7 @@ export const handler = define.handlers({
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
   },
@@ -70,7 +70,7 @@ export const handler = define.handlers({
       const response = await fetch(`${BACKEND_API}/tasks/${id}`, {
         method: "DELETE",
       });
-      
+
       // For DELETE, backend returns 204 No Content with no body
       return new Response(null, {
         status: response.status,
@@ -82,8 +82,8 @@ export const handler = define.handlers({
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
   },
-}); 
+});

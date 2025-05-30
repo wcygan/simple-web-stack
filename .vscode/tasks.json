@@ -83,6 +83,12 @@
                 "focus": false,
                 "panel": "shared"
             }
+        },
+        {
+            "label": "deno: lint:frontend",
+            "type": "shell",
+            "command": "deno task lint:frontend",
+            "problemMatcher": []
         }
     ]
 } 

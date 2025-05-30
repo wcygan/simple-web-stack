@@ -6,7 +6,9 @@ interface AddTaskFormProps {
   onAddTask: (title: string) => void;
 }
 
-export default function AddTaskFormIsland({ newTaskTitleSignal, onAddTask }: AddTaskFormProps) {
+export default function AddTaskFormIsland(
+  { newTaskTitleSignal, onAddTask }: AddTaskFormProps,
+) {
   const handleSubmit = (e: JSX.TargetedEvent<HTMLFormElement, Event>) => {
     e.preventDefault();
     onAddTask(newTaskTitleSignal.value);
@@ -18,7 +20,8 @@ export default function AddTaskFormIsland({ newTaskTitleSignal, onAddTask }: Add
         <input
           type="text"
           value={newTaskTitleSignal.value}
-          onInput={(e) => newTaskTitleSignal.value = (e.target as HTMLInputElement).value}
+          onInput={(e) =>
+            newTaskTitleSignal.value = (e.target as HTMLInputElement).value}
           placeholder="What needs to be done?"
           class="flex-grow p-3 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow shadow-sm hover:shadow-md"
         />
@@ -32,4 +35,4 @@ export default function AddTaskFormIsland({ newTaskTitleSignal, onAddTask }: Add
       </div>
     </form>
   );
-} 
+}

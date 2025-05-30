@@ -9,7 +9,7 @@ export const handler = define.handlers({
     try {
       const response = await fetch(`${BACKEND_API}/tasks`);
       const data = await response.json();
-      
+
       return new Response(JSON.stringify(data), {
         status: response.status,
         headers: {
@@ -23,7 +23,7 @@ export const handler = define.handlers({
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
   },
@@ -32,7 +32,7 @@ export const handler = define.handlers({
   async POST(ctx) {
     try {
       const body = await ctx.req.text();
-      
+
       const response = await fetch(`${BACKEND_API}/tasks`, {
         method: "POST",
         headers: {
@@ -40,9 +40,9 @@ export const handler = define.handlers({
         },
         body,
       });
-      
+
       const data = await response.json();
-      
+
       return new Response(JSON.stringify(data), {
         status: response.status,
         headers: {
@@ -56,8 +56,8 @@ export const handler = define.handlers({
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
   },
-}); 
+});

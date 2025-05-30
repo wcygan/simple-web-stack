@@ -18,11 +18,13 @@ export default function TasksPage({ data }: PageProps<null>) { // Data from hand
 
   return (
     <>
-      {/* <Head>
+      {
+        /* <Head>
         <title>My Tasks</title>
         <meta name="description" content="A simple application to manage your tasks." />
-        <link rel="stylesheet" href="/styles.css" /> 
-      </Head> */}
+        <link rel="stylesheet" href="/styles.css" />
+      </Head> */
+      }
       <div class="p-4 mx-auto max-w-screen-md">
         <header class="text-center my-8">
           <img
@@ -33,27 +35,36 @@ export default function TasksPage({ data }: PageProps<null>) { // Data from hand
             class="mx-auto mb-4"
           />
           <h1 class="text-4xl font-bold text-gray-800">Task Manager</h1>
-          <p class="text-lg text-gray-600">Organize your day, one task at a time.</p>
+          <p class="text-lg text-gray-600">
+            Organize your day, one task at a time.
+          </p>
         </header>
-        
+
         <main>
           <section aria-labelledby="add-task-heading" class="mb-8">
-            <h2 id="add-task-heading" class="sr-only">Add New Task</h2> {/* For accessibility */}
+            <h2 id="add-task-heading" class="sr-only">Add New Task</h2>{" "}
+            {/* For accessibility */}
             <AddTaskForm tasksSignal={tasksSignal} />
           </section>
 
           <section aria-labelledby="task-list-heading">
-            <h2 id="task-list-heading" class="text-2xl font-semibold text-gray-700 mb-4">Your Tasks</h2>
+            <h2
+              id="task-list-heading"
+              class="text-2xl font-semibold text-gray-700 mb-4"
+            >
+              Your Tasks
+            </h2>
             <TaskList tasksSignal={tasksSignal} />
           </section>
         </main>
 
         <footer class="text-center mt-12 py-4 border-t border-gray-200">
           <p class="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} Simple Web Stack, Inc. All rights reserved.
+            &copy; {new Date().getFullYear()}{" "}
+            Simple Web Stack, Inc. All rights reserved.
           </p>
         </footer>
       </div>
     </>
   );
-} 
+}

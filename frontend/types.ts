@@ -4,4 +4,4 @@ export interface Task {
   completed: boolean;
   created_at?: string; // ISO date string
   updated_at?: string; // ISO date string
-} 
+}

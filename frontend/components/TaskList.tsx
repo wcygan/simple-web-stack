@@ -7,20 +7,26 @@ export interface TaskListProps {
   onDeleteTask: (id: string) => void;
 }
 
-export default function TaskList({ tasks, onToggleComplete, onDeleteTask }: TaskListProps) {
+export default function TaskList(
+  { tasks, onToggleComplete, onDeleteTask }: TaskListProps,
+) {
   if (tasks.length === 0) {
-    return <p class="text-center text-gray-500 italic py-4">No tasks yet. Add one above!</p>;
+    return (
+      <p class="text-center text-gray-500 italic py-4">
+        No tasks yet. Add one above!
+      </p>
+    );
   }
   return (
     <ul class="space-y-3">
       {tasks.map((task) => (
-        <TaskItem 
-          key={task.id} 
-          task={task} 
-          onToggleComplete={onToggleComplete} 
-          onDeleteTask={onDeleteTask} 
+        <TaskItem
+          key={task.id}
+          task={task}
+          onToggleComplete={onToggleComplete}
+          onDeleteTask={onDeleteTask}
         />
       ))}
     </ul>
   );
-} 
+}

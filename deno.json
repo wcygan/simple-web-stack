@@ -6,7 +6,8 @@
         "ci:frontend": "./scripts/run-frontend-ci-locally.ts",
         "test:backend": "cd backend && ./test_runner.ts",
         "docker:ps": "docker compose ps",
-        "cli": "deno run --allow-net --allow-env scripts/task-cli.ts"
+        "cli": "deno run --allow-net --allow-env scripts/task-cli.ts",
+        "lint:frontend": "deno fmt frontend/ && deno lint --fix frontend/ && deno lint frontend/"
     },
     "imports": {
         "@std/cli/parse-args": "jsr:@std/cli@^0.224.0/parse-args",

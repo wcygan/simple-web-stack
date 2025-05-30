@@ -1,4 +1,4 @@
-import { useSignal, effect } from "@preact/signals";
+import { effect, useSignal } from "@preact/signals";
 import { type Task } from "../types.ts";
 import AddTaskFormIsland from "./AddTaskFormIsland.tsx";
 import TaskList from "../components/TaskList.tsx";
@@ -29,7 +29,10 @@ async function createTask(title: string): Promise<Task> {
   return await response.json();
 }
 
-async function updateTask(id: string, updates: { title?: string; completed?: boolean }): Promise<Task> {
+async function updateTask(
+  id: string,
+  updates: { title?: string; completed?: boolean },
+): Promise<Task> {
   const response = await fetch(`${API_BASE}/tasks/${id}`, {
     method: "PUT",
     headers: {
@@ -99,15 +102,13 @@ export default function TodoApp() {
 
   const handleToggleComplete = async (id: string) => {
     // Find the current task to get its current completion status
-    const task = tasks.value.find(t => t.id === id);
+    const task = tasks.value.find((t) => t.id === id);
     if (!task) return;
 
     try {
       error.value = "";
       const updatedTask = await updateTask(id, { completed: !task.completed });
-      tasks.value = tasks.value.map((t) =>
-        t.id === id ? updatedTask : t
-      );
+      tasks.value = tasks.value.map((t) => t.id === id ? updatedTask : t);
     } catch (err) {
       console.error("Failed to update task:", err);
       error.value = "Failed to update task. Please try again.";
@@ -132,25 +133,27 @@ export default function TodoApp() {
           {error.value}
         </div>
       )}
-      
+
       <AddTaskFormIsland
         newTaskTitleSignal={newTaskTitle}
         onAddTask={handleAddTask}
       />
-      
+
       <div class="mt-8">
-        {loading.value ? (
-          <div class="text-center py-8">
-            <div class="text-gray-500">Loading tasks...</div>
-          </div>
-        ) : (
-          <TaskList
-            tasks={tasks.value}
-            onToggleComplete={handleToggleComplete}
-            onDeleteTask={handleDeleteTask}
-          />
-        )}
+        {loading.value
+          ? (
+            <div class="text-center py-8">
+              <div class="text-gray-500">Loading tasks...</div>
+            </div>
+          )
+          : (
+            <TaskList
+              tasks={tasks.value}
+              onToggleComplete={handleToggleComplete}
+              onDeleteTask={handleDeleteTask}
+            />
+          )}
       </div>
     </div>
   );
-} 
+}

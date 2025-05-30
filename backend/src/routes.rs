@@ -216,4 +216,3 @@ pub fn task_routes() -> Router<AppState> {
         .route("/", post(create_task).get(list_tasks))
         .route("/{id}", get(get_task).put(update_task).delete(delete_task))
 }
-

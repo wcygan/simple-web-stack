@@ -31,7 +31,7 @@ async fn main() {
 
     // Initialize tracing subscriber
     tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(fmt::layer())
         .init();
 

@@ -28,20 +28,9 @@ jobs:
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable # Or specify your project's Rust version/channel
-
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            ./backend/target/ # Cache build artifacts
-          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          toolchain: stable
+          components: rustfmt, clippy
+          cache-workspaces: ./backend
 
       - name: Check formatting (Rustfmt)
         run: cargo fmt --all -- --check

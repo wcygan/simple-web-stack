@@ -171,7 +171,7 @@ pub async fn update_task(
     }
 
     if !has_updates {
-        return Err(AppError::ValidationError("No fields to update".to_string()));
+        return Err(AppError::NoFieldsToUpdate);
     }
 
     query_builder.push(" WHERE id = ");

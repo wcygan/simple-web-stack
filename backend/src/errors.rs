@@ -11,6 +11,7 @@ pub enum AppError {
     SqlxError(sqlx::Error),
     NotFound,
     ValidationError(String),
+    NoFieldsToUpdate,
 }
 
 impl From<sqlx::Error> for AppError {
@@ -39,6 +40,10 @@ impl IntoResponse for AppError {
                 tracing::warn!("Validation error: {}", msg);
                 (StatusCode::BAD_REQUEST, msg)
             }
+            AppError::NoFieldsToUpdate => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "No fields to update".to_string(),
+            ),
         };
 
         let body = Json(json!({

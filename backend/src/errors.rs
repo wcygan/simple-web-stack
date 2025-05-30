@@ -35,15 +35,21 @@ impl IntoResponse for AppError {
                     ),
                 }
             }
-            AppError::NotFound => (StatusCode::NOT_FOUND, "Resource not found".to_string()),
+            AppError::NotFound => {
+                tracing::warn!("Resource not found");
+                (StatusCode::NOT_FOUND, "Resource not found".to_string())
+            }
             AppError::ValidationError(msg) => {
                 tracing::warn!("Validation error: {}", msg);
                 (StatusCode::BAD_REQUEST, msg)
             }
-            AppError::NoFieldsToUpdate => (
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "No fields to update".to_string(),
-            ),
+            AppError::NoFieldsToUpdate => {
+                tracing::warn!("No fields to update provided in request");
+                (
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "No fields to update".to_string(),
+                )
+            }
         };
 
         let body = Json(json!({

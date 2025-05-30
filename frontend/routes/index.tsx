@@ -1,4 +1,5 @@
 import TaskList from "../components/TaskList.tsx";
+import { AddTaskForm } from "../components/AddTaskForm.tsx";
 import { type Task } from "../types.ts";
 
 const initialTasks: Task[] = [
@@ -15,11 +16,8 @@ export default function Home() {
       </header>
       <main>
         <div class="bg-white shadow-md rounded-lg p-6">
+          <AddTaskForm />
           <TaskList tasks={initialTasks} />
-          {/* Placeholder for Add Task Form */}
-          <div class="mt-6">
-            <p class="text-gray-600 italic">Add task form will go here.</p>
-          </div>
         </div>
       </main>
       <footer class="mt-12 text-center text-gray-500 text-sm">

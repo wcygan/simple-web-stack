@@ -1,16 +1,18 @@
-import type { ComponentChildren } from "preact";
+import { JSX } from "preact";
 
-export interface ButtonProps {
-  onClick?: () => void;
-  children?: ComponentChildren;
-  disabled?: boolean;
+// Explicitly include type and disabled attributes for buttons
+interface ButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean; // Explicitly adding disabled here
 }
 
 export function Button(props: ButtonProps) {
   return (
     <button
       {...props}
-      class="px-2 py-1 border-gray-500 border-2 rounded bg-white hover:bg-gray-200 transition-colors"
+      type={props.type || "button"} // Default to "button" if not specified
+      // The disabled attribute will be passed through by {...props}
+      class={`px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-700 disabled:opacity-50 ${props.class ?? ""}`}
     />
   );
 }

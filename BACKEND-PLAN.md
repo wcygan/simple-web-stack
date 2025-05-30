@@ -224,6 +224,13 @@ backend/
 
 **Milestone 4: Testing**
 
+### Key Ideas for Testcontainers Integration
+* Single container reuse across tests to minimize startup overhead.
+* Consistent database state through automated migrations and cleanup between tests.
+* Isolated parallel test execution without interference.
+* Easy setup and teardown via a shared TestContext abstraction.
+* Realistic end-to-end testing against an actual MySQL container instance.
+
 1.  **Set up `backend/tests/common/mod.rs`:**
     *   Function `spawn_app()` that:
         *   Spins up a MySQL container using `testcontainers` and `Mysql` module.

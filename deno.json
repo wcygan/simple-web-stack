@@ -2,14 +2,15 @@
     "tasks": {
         "up": "docker compose up -d --build",
         "down": "docker compose down",
-        "ci:backend": "./scripts/run-backend-ci-locally.sh",
-        "ci:frontend": "./scripts/run-frontend-ci-locally.sh",
+        "ci:backend": "./scripts/run-backend-ci-locally.ts",
+        "ci:frontend": "./scripts/run-frontend-ci-locally.ts",
         "test:backend": "cd backend && ./test_runner.ts",
         "docker:ps": "docker compose ps"
     },
     "imports": {
         "@std/cli/parse-args": "jsr:@std/cli@^0.224.0/parse-args",
         "@std/fmt/colors": "jsr:@std/fmt@^0.224.0/colors",
-        "@std/fs/ensure-dir": "jsr:@std/fs@^0.224.0/ensure-dir"
+        "@std/fs/ensure-dir": "jsr:@std/fs@^0.224.0/ensure-dir",
+        "@david/dax": "jsr:@david/dax@^0.39.2"
     }
 }

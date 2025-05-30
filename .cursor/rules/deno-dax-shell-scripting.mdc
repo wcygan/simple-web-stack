@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Deno and Dax Shell Scripting Guidelines
+
+This project prefers **Deno with Dax** for shell scripting over traditional bash scripts for cross-platform compatibility, type safety, and modern development practices.
+
+## Preferred Technologies
+
+### Primary Stack
+- **Deno** - TypeScript runtime with secure defaults
+- **Dax** - Cross-platform shell tools (`jsr:@david/dax`)
+- **TypeScript** - For type safety and modern language features
+
+### Standard Libraries
+- `@std/cli/parse-args` - Command-line argument parsing
+- `@std/fmt/colors` - Colored terminal output
+- `@std/fs/ensure-dir` - File system utilities
+
+## Script Structure Template
+
+Reference examples: [scripts/run-backend-ci-locally.ts](mdc:scripts/run-backend-ci-locally.ts) and [scripts/run-frontend-ci-locally.ts](mdc:scripts/run-frontend-ci-locally.ts)
+
+### Standard Script Header
+```typescript
+#!/usr/bin/env -S deno run --allow-all
+import $ from "jsr:@david/dax";
+import { parseArgs } from "@std/cli/parse-args";
+import { cyan, yellow, blue, green } from "@std/fmt/colors";
+```
+
+### Argument Parsing Pattern
+```typescript
+const args = parseArgs(Deno.args, {
+  alias: { e: "eventType" }
+});
+const eventType = args.eventType || args._[0] || "default_value";
+```
+
+### Colored Output Pattern
+```typescript
+console.log(cyan("Main heading..."));
+console.log(yellow("-----------------------------------------------------"));
+console.log(blue("INFO: Information message"));
+console.log(green("SUCCESS: Success message"));
+```
+
+### Shell Command Execution
+```typescript
+// Simple command
+await $`command arg1 arg2`;
+
+// Command with variables
+await $`act ${eventType} --job ${JOB_NAME} -W ${WORKFLOW_FILE}`;
+
+// Capture output
+const result = await $`cat .actrc`.text().catch(() => "fallback");
+```
+
+## Configuration Integration
+
+Dependencies should be managed in [deno.json](mdc:deno.json) with proper import maps:
+
+```json
+{
+  "tasks": {
+    "script-name": "./scripts/script-name.ts"
+  },
+  "imports": {
+    "@david/dax": "jsr:@david/dax@^0.39.2",
+    "@std/cli/parse-args": "jsr:@std/cli@^0.224.0/parse-args",
+    "@std/fmt/colors": "jsr:@std/fmt@^0.224.0/colors"
+  }
+}
+```
+
+## Migration Guidelines
+
+When converting bash scripts to Deno/Dax:
+
+1. **Replace bash shebangs** with `#!/usr/bin/env -S deno run --allow-all`
+2. **Convert environment variables** to Deno.env.get() or use Dax env methods
+3. **Replace command substitution** with Dax command execution and `.text()` method
+4. **Add type safety** with TypeScript interfaces where beneficial
+5. **Implement colored output** for better UX
+6. **Use parseArgs** for robust CLI argument handling
+7. **Make scripts executable** with `chmod +x`
+
+## Benefits of This Approach
+
+- **Cross-platform compatibility** - Works on Windows, macOS, and Linux
+- **Type safety** - Full TypeScript support with IDE integration
+- **Security** - Deno's permission system provides granular control
+- **Modern syntax** - ES modules, async/await, and modern JavaScript features
+- **Better error handling** - Structured error handling with try/catch
+- **Dependency management** - Clear dependency tracking in deno.json
+- **Performance** - Fast startup and execution compared to bash
+
+## Usage Examples
+
+```bash
+# Run with default arguments
+deno task script-name
+
+# Run with specific arguments
+deno task script-name arg1 arg2
+
+# Run with flags
+deno task script-name --flag value
+```
+
+This approach ensures maintainable, cross-platform, and type-safe shell scripting throughout the project.

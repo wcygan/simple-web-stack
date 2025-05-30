@@ -197,3 +197,202 @@ impl IntoResponse for AppError {
 3. **Boolean Handling**: MySQL stores booleans as TINYINT(1), convert with `!= 0`
 4. **Missing Imports**: Always import `sqlx::Row` when using runtime queries
 5. **CORS**: Don't forget to add `CorsLayer::permissive()` for frontend integration
+
+## Testcontainers Integration for Fast Tests
+
+### Shared Container Pattern for Performance
+
+For integration tests, use a shared MySQL container across all tests rather than starting a new container per test. This reduces test suite runtime from minutes to seconds.
+
+**❌ Don't start containers per test:**
+```rust
+#[tokio::test]
+async fn test_something() {
+    let container = Mysql::default().start().await.unwrap();
+    // This takes 8+ seconds per test
+}
+```
+
+**✅ Do use shared container with database isolation:**
+```rust
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
+static CONTAINER: Lazy<Mutex<Option<ContainerState>>> = Lazy::new(|| Mutex::new(None));
+
+struct ContainerState {
+    _container: ContainerAsync<Mysql>,
+    port: u16,
+}
+
+async fn ensure_container() -> u16 {
+    let mut container_guard = CONTAINER.lock().unwrap();
+    
+    if let Some(ref state) = *container_guard {
+        return state.port; // Reuse existing container
+    }
+    
+    // Start container only once
+    let container = Mysql::default()
+        .with_env_var("MYSQL_ROOT_PASSWORD", "root")
+        .with_env_var("MYSQL_USER", "test_user")
+        .with_env_var("MYSQL_PASSWORD", "test_pass")
+        .start()
+        .await
+        .expect("Failed to start MySQL container");
+    
+    let port = container.get_host_port_ipv4(3306).await.unwrap();
+    *container_guard = Some(ContainerState { _container: container, port });
+    
+    port
+}
+```
+
+### Database Isolation Strategy
+
+Each test should get its own database within the shared container:
+
+```rust
+pub async fn spawn_app() -> TestApp {
+    let db_port = ensure_container().await;
+    
+    // Create unique database for this test
+    let db_name = format!("test_{}", Uuid::new_v4().to_string().replace("-", "_"));
+    
+    // Connect as root to create test database
+    let root_pool = MySqlPoolOptions::new()
+        .connect(&format!("mysql://root:root@127.0.0.1:{}/mysql", db_port))
+        .await?;
+    
+    // Create and grant privileges
+    sqlx::query(&format!("CREATE DATABASE {}", db_name)).execute(&root_pool).await?;
+    sqlx::query(&format!("GRANT ALL PRIVILEGES ON {}.* TO 'test_user'@'%'", db_name))
+        .execute(&root_pool).await?;
+    sqlx::query("FLUSH PRIVILEGES").execute(&root_pool).await?;
+    
+    // Connect to test database and run migrations
+    let test_pool = MySqlPoolOptions::new()
+        .connect(&format!("mysql://test_user:test_pass@127.0.0.1:{}/{}", db_port, db_name))
+        .await?;
+    init_db(&test_pool).await?;
+}
+```
+
+### Tokio Runtime Compatibility
+
+Avoid blocking operations in async tests. Use tokio's async networking:
+
+**❌ Don't use std blocking sockets:**
+```rust
+let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
+let server = axum::serve(tokio::net::TcpListener::from_std(listener)?, app);
+```
+
+**✅ Do use tokio async sockets:**
+```rust
+let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+let server = axum::serve(listener, app.into_make_service());
+```
+
+### Test Structure and Cleanup
+
+Structure tests with proper setup and cleanup:
+
+```rust
+use backend::db::{AppState, init_db};
+use backend::routes;
+
+// Test helper in tests/common/mod.rs
+pub struct TestApp {
+    pub address: String,
+    pub db_pool: MySqlPool,
+    pub db_name: String,
+}
+
+impl TestApp {
+    pub async fn cleanup(&self) {
+        // Drop test database
+        let root_url = format!("mysql://root:root@127.0.0.1:{}/mysql", db_port);
+        if let Ok(root_pool) = MySqlPoolOptions::new().connect(&root_url).await {
+            let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {}", self.db_name))
+                .execute(&root_pool).await;
+        }
+        self.db_pool.close().await;
+    }
+}
+
+// In test files
+#[tokio::test]
+async fn test_create_task() {
+    let test_app = spawn_app().await;
+    
+    // Test logic here
+    
+    test_app.cleanup().await; // Always cleanup
+}
+```
+
+### HTTP Status Code Testing
+
+Be precise about expected HTTP status codes:
+
+```rust
+// Missing required fields should return 422, not 400
+assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+// Validation errors (empty strings) should return 400
+assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+// Resource not found should return 404
+assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+// Successful creation should return 201
+assert_eq!(response.status(), StatusCode::CREATED);
+
+// Successful deletion should return 204
+assert_eq!(response.status(), StatusCode::NO_CONTENT);
+```
+
+### Performance Optimization Results
+
+With shared containers:
+- **Before**: 134 seconds for 13 tests (10+ seconds per test)
+- **After**: 20 seconds for 13 tests (~1.5 seconds per test)
+- **Improvement**: 6.7x faster test execution
+
+### Additional Test Performance Tips
+
+1. **Limit test parallelism** to reduce database contention:
+   ```bash
+   cargo test -- --test-threads=4
+   ```
+
+2. **Run specific test suites** during development:
+   ```bash
+   cargo test tasks_api    # Only task tests
+   cargo test health       # Only health tests
+   ```
+
+3. **Use cargo-nextest** for better test execution:
+   ```bash
+   cargo install cargo-nextest
+   cargo nextest run
+   ```
+
+### Integration Test Dependencies
+
+Required dependencies in [Cargo.toml](mdc:backend/Cargo.toml):
+
+```toml
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+testcontainers = "0.24"
+testcontainers-modules = { version = "0.12", features = ["mysql"] }
+once_cell = "1"
+```
+
+Key files:
+- [tests/common/mod.rs](mdc:backend/tests/common/mod.rs) - Shared test utilities
+- [tests/health_check.rs](mdc:backend/tests/health_check.rs) - Health endpoint tests  
+- [tests/tasks_api.rs](mdc:backend/tests/tasks_api.rs) - Complete CRUD API tests
+- [src/lib.rs](mdc:backend/src/lib.rs) - Module exports for integration tests

@@ -246,16 +246,8 @@ async fn http_method_security() {
             "PATCH on collection",
         ),
         (
-            client.head(format!("{}/tasks", test_app.address)),
-            "HEAD on collection",
-        ),
-        (
             client.patch(format!("{}/tasks/123", test_app.address)),
             "PATCH on item",
-        ),
-        (
-            client.head(format!("{}/tasks/123", test_app.address)),
-            "HEAD on item",
         ),
     ];
 
@@ -268,6 +260,35 @@ async fn http_method_security() {
         // Should return Method Not Allowed or Not Found
         assert!(
             response.status() == StatusCode::METHOD_NOT_ALLOWED
+                || response.status() == StatusCode::NOT_FOUND,
+            "{}: Unexpected status: {}",
+            description,
+            response.status()
+        );
+    }
+
+    // Test that HEAD requests work for GET endpoints (this is correct HTTP behavior)
+    let head_requests = vec![
+        (
+            client.head(format!("{}/tasks", test_app.address)),
+            "HEAD on collection",
+        ),
+        (
+            client.head(format!("{}/tasks/123", test_app.address)),
+            "HEAD on item",
+        ),
+    ];
+
+    for (request_builder, description) in head_requests {
+        let response = request_builder
+            .send()
+            .await
+            .expect("Failed to execute request");
+
+        // HEAD should return 200 (for collection) or 400/404 (for invalid UUID)
+        assert!(
+            response.status() == StatusCode::OK
+                || response.status() == StatusCode::BAD_REQUEST
                 || response.status() == StatusCode::NOT_FOUND,
             "{}: Unexpected status: {}",
             description,
@@ -465,17 +486,25 @@ async fn xss_prevention_in_responses() {
             let task: serde_json::Value = response.json().await.unwrap();
             let task_id = task["id"].as_str().unwrap();
 
-            // Verify the response is properly escaped/sanitized
+            // Verify the response is properly JSON-encoded (not executed as script)
             let response_text = serde_json::to_string(&task).unwrap();
 
-            // The response should not contain unescaped script tags
+            // JSON should properly quote the content, making it safe
+            // The payload should be stored as a string value, not executable code
             assert!(
-                !response_text.contains("<script>") || response_text.contains("&lt;script&gt;"),
-                "XSS payload should be escaped in response: {}",
+                response_text.contains(&format!("\"{}\"", payload.replace("\"", "\\\""))),
+                "XSS payload should be properly JSON-encoded in response: {}",
                 payload
             );
 
-            // Verify retrieval also escapes properly
+            // Verify the title field contains the original payload as a string
+            assert_eq!(
+                task["title"].as_str().unwrap(),
+                payload,
+                "Title should contain the original payload as a string"
+            );
+
+            // Verify retrieval also handles it properly
             let get_response = client
                 .get(format!("{}/tasks/{}", test_app.address, task_id))
                 .send()
@@ -484,12 +513,19 @@ async fn xss_prevention_in_responses() {
 
             if get_response.status() == StatusCode::OK {
                 let retrieved_task: serde_json::Value = get_response.json().await.unwrap();
-                let get_response_text = serde_json::to_string(&retrieved_task).unwrap();
 
+                // Verify the retrieved task also has the payload as a string
+                assert_eq!(
+                    retrieved_task["title"].as_str().unwrap(),
+                    payload,
+                    "Retrieved title should contain the original payload as a string"
+                );
+
+                // Verify JSON encoding is proper
+                let get_response_text = serde_json::to_string(&retrieved_task).unwrap();
                 assert!(
-                    !get_response_text.contains("<script>")
-                        || get_response_text.contains("&lt;script&gt;"),
-                    "XSS payload should be escaped in GET response: {}",
+                    get_response_text.contains(&format!("\"{}\"", payload.replace("\"", "\\\""))),
+                    "XSS payload should be properly JSON-encoded in GET response: {}",
                     payload
                 );
             }

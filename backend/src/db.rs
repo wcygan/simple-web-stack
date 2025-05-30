@@ -29,8 +29,8 @@ pub async fn init_db(pool: &MySqlPool) -> Result<(), sqlx::Error> {
             id CHAR(36) PRIMARY KEY,
             title VARCHAR(255) NOT NULL,
             completed BOOLEAN NOT NULL DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+            updated_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
         )
         "#,
     )

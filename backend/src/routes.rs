@@ -16,6 +16,29 @@ use crate::{
     models::{CreateTaskPayload, Task, UpdateTaskPayload},
 };
 
+/// Maximum allowed title length
+const MAX_TITLE_LENGTH: usize = 255;
+
+/// Helper function to validate task title
+fn validate_title(title: &str) -> Result<String, AppError> {
+    let trimmed = title.trim();
+
+    if trimmed.is_empty() {
+        return Err(AppError::ValidationError(
+            "Task title cannot be empty".to_string(),
+        ));
+    }
+
+    if trimmed.len() > MAX_TITLE_LENGTH {
+        return Err(AppError::ValidationError(format!(
+            "Task title cannot exceed {} characters",
+            MAX_TITLE_LENGTH
+        )));
+    }
+
+    Ok(trimmed.to_string())
+}
+
 /// Helper function to convert a database row to a Task
 fn row_to_task(row: &MySqlRow) -> Result<Task, sqlx::Error> {
     Ok(Task {
@@ -40,11 +63,7 @@ pub async fn create_task(
     tracing::info!("Creating new task with title: {}", payload.title);
 
     // Validate input
-    if payload.title.trim().is_empty() {
-        return Err(AppError::ValidationError(
-            "Task title cannot be empty".to_string(),
-        ));
-    }
+    let validated_title = validate_title(&payload.title)?;
 
     let task_id = Uuid::new_v4();
 
@@ -56,7 +75,7 @@ pub async fn create_task(
         "#,
     )
     .bind(task_id.to_string())
-    .bind(payload.title.trim())
+    .bind(&validated_title)
     .execute(&app_state.pool)
     .await?;
 
@@ -138,18 +157,20 @@ pub async fn update_task(
         .fetch_one(&app_state.pool)
         .await?;
 
+    // Validate title if provided
+    let validated_title = if let Some(title) = &payload.title {
+        Some(validate_title(title)?)
+    } else {
+        None
+    };
+
     // Build dynamic update query based on provided fields
     let mut query_builder = sqlx::QueryBuilder::new("UPDATE tasks SET ");
     let mut has_updates = false;
 
-    if let Some(title) = &payload.title {
-        if title.trim().is_empty() {
-            return Err(AppError::ValidationError(
-                "Task title cannot be empty".to_string(),
-            ));
-        }
+    if let Some(title) = &validated_title {
         query_builder.push("title = ");
-        query_builder.push_bind(title.trim());
+        query_builder.push_bind(title);
         has_updates = true;
     }
 
@@ -165,6 +186,12 @@ pub async fn update_task(
     if !has_updates {
         return Err(AppError::NoFieldsToUpdate);
     }
+
+    // Always update the updated_at timestamp to ensure it changes
+    if has_updates {
+        query_builder.push(", ");
+    }
+    query_builder.push("updated_at = CURRENT_TIMESTAMP(6)");
 
     query_builder.push(" WHERE id = ");
     query_builder.push_bind(task_id.to_string());

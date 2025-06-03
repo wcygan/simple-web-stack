@@ -2,6 +2,8 @@
 
 This project demonstrates a todo list application built with Deno Fresh and Axum.
 
+<img src="todo.jpg" alt="Screenshot of the Todo List Application" width="500px" />
+
 | Component | Technology |
 |---|---|
 | Frontend | [Deno Fresh](https://fresh.deno.dev/) |

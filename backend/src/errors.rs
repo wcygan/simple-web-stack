@@ -12,6 +12,8 @@ pub enum AppError {
     NotFound,
     ValidationError(String),
     NoFieldsToUpdate,
+    Unauthorized(String),
+    InternalServerError(String),
 }
 
 impl From<sqlx::Error> for AppError {
@@ -49,6 +51,14 @@ impl IntoResponse for AppError {
                     StatusCode::UNPROCESSABLE_ENTITY,
                     "No fields to update".to_string(),
                 )
+            }
+            AppError::Unauthorized(msg) => {
+                tracing::warn!("Unauthorized: {}", msg);
+                (StatusCode::UNAUTHORIZED, msg)
+            }
+            AppError::InternalServerError(msg) => {
+                tracing::error!("Internal server error: {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, msg)
             }
         };
 

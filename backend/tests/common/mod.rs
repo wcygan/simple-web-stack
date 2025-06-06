@@ -12,6 +12,7 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use uuid::Uuid;
 
 // Import backend modules using the crate name directly
+use backend::auth::{AuthConfig, AuthService};
 use backend::db::{init_db, AppState};
 use backend::routes;
 
@@ -187,9 +188,17 @@ pub async fn spawn_app() -> TestApp {
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
 
+    // Create auth service
+    let auth_config = AuthConfig {
+        jwt_secret: "test-secret-key".to_string(),
+        token_expiry_hours: 24,
+    };
+    let auth_service = AuthService::new(auth_config);
+
     // Create app state
     let app_state = AppState {
         pool: db_pool.clone(),
+        auth_service,
     };
 
     // Build the app

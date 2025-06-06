@@ -25,6 +25,7 @@ export default function AddTaskForm({ tasksSignal }: AddTaskFormProps) {
       id: crypto.randomUUID(), // Use crypto.randomUUID for a mock ID
       title: title.value.trim(),
       completed: false,
+      user_id: "00000000-0000-0000-0000-000000000000",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

@@ -1,5 +1,13 @@
 {
     "tasks": {
+        "dev": "docker compose -f docker-compose.yml -f docker-compose.override.yml up --build",
+        "dev:up": "docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build",
+        "dev:down": "docker compose -f docker-compose.yml -f docker-compose.override.yml down",
+        "dev:logs": "docker compose -f docker-compose.yml -f docker-compose.override.yml logs -f",
+        "dev:restart": "docker compose -f docker-compose.yml -f docker-compose.override.yml restart",
+        "prod": "docker compose -f docker-compose.yml up --build",
+        "prod:up": "docker compose -f docker-compose.yml up -d --build",
+        "prod:down": "docker compose -f docker-compose.yml down",
         "up": "docker compose up -d --build",
         "down": "docker compose down",
         "ci:backend": "./scripts/run-backend-ci-locally.ts",
@@ -13,7 +21,9 @@
         "test:backend:watch": "./scripts/test-backend.ts --watch",
         "docker:ps": "docker compose ps",
         "cli": "deno run --allow-net --allow-env scripts/task-cli.ts",
-        "lint:frontend": "deno fmt frontend/ && deno lint --fix frontend/ && deno lint frontend/"
+        "lint:frontend": "deno fmt frontend/ && deno lint --fix frontend/ && deno lint frontend/",
+        "check:coordination": "./scripts/check-coordination-progress.ts",
+        "check:coordination:watch": "./scripts/check-coordination-progress.ts --watch"
     },
     "imports": {
         "@std/cli/parse-args": "jsr:@std/cli@^0.224.0/parse-args",

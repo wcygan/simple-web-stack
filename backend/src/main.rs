@@ -5,11 +5,14 @@ use std::net::SocketAddr;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+mod auth;
 mod db;
 mod errors;
+mod middleware;
 mod models;
 mod routes;
 
+use auth::{AuthConfig, AuthService};
 use db::{create_pool, init_db, AppState};
 
 /// Command line arguments
@@ -53,13 +56,19 @@ async fn main() {
     // Initialize database schema
     init_db(&pool).await.expect("Failed to initialize database");
 
+    // Create auth service
+    let auth_config = AuthConfig::from_env();
+    let auth_service = AuthService::new(auth_config);
+
     // Create the application state
-    let app_state = AppState { pool };
+    let app_state = AppState { pool, auth_service };
 
     // Build our application with a route
     let app = Router::new()
         .route("/health", get(routes::health_check)) // Mount health_check from routes.rs
         .nest("/tasks", routes::task_routes())
+        .nest("/auth", routes::public_auth_routes())
+        .nest("/auth", routes::protected_auth_routes())
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);

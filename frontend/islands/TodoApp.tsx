@@ -1,13 +1,44 @@
 import { effect, useSignal } from "@preact/signals";
-import { type Task } from "../types.ts";
+import { type Task, type SearchParams, type TaskQueryParams, type PaginatedResponse } from "../types.ts";
 import AddTaskFormIsland from "./AddTaskFormIsland.tsx";
 import TaskList from "../components/TaskList.tsx";
+import { SearchForm } from "../components/SearchForm.tsx";
 
 // API base URL - using Fresh API proxy routes for same-origin requests
 const API_BASE = "/api";
 
 // API functions for task operations
-async function fetchTasks(): Promise<Task[]> {
+async function fetchTasks(searchParams?: TaskQueryParams): Promise<PaginatedResponse<Task>> {
+  let url = `${API_BASE}/tasks`;
+  
+  if (searchParams) {
+    const params = new URLSearchParams();
+    
+    // Add pagination params
+    if (searchParams.page) params.append('page', searchParams.page.toString());
+    if (searchParams.page_size) params.append('page_size', searchParams.page_size.toString());
+    if (searchParams.sort_by) params.append('sort_by', searchParams.sort_by);
+    if (searchParams.sort_order) params.append('sort_order', searchParams.sort_order);
+    
+    // Add search params
+    if (searchParams.q && searchParams.q.trim()) params.append('q', searchParams.q.trim());
+    if (searchParams.status && searchParams.status !== 'all') params.append('status', searchParams.status);
+    
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+  }
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch tasks: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+// Legacy function for backwards compatibility
+async function fetchAllTasks(): Promise<Task[]> {
   const response = await fetch(`${API_BASE}/tasks`);
   if (!response.ok) {
     throw new Error(`Failed to fetch tasks: ${response.statusText}`);
@@ -61,26 +92,59 @@ export default function TodoApp() {
   const loading = useSignal(true);
   const error = useSignal("");
   const mounted = useSignal(false);
+  
+  // Search and pagination state
+  const searchParams = useSignal<SearchParams>({ q: "", status: "all" });
+  const queryParams = useSignal<TaskQueryParams>({ 
+    page: 1, 
+    page_size: 20, 
+    sort_by: "created_at", 
+    sort_order: "desc",
+    q: "",
+    status: "all"
+  });
+  const totalTasks = useSignal(0);
+  const totalPages = useSignal(1);
+  
+  // Debounce timeout for search
+  let searchTimeout: number | undefined;
+
+  // Load tasks with search/pagination - runs when queryParams change
+  const loadTasks = async () => {
+    try {
+      loading.value = true;
+      error.value = "";
+      const response = await fetchTasks(queryParams.value);
+      tasks.value = response.data;
+      totalTasks.value = response.pagination.total_items || response.pagination.total || 0;
+      totalPages.value = response.pagination.total_pages;
+    } catch (err) {
+      console.error("Failed to load tasks:", err);
+      error.value = "Failed to load tasks. Please try again.";
+      // If paginated API fails, try legacy endpoint as fallback
+      try {
+        const fallbackTasks = await fetchAllTasks();
+        tasks.value = fallbackTasks;
+        totalTasks.value = fallbackTasks.length;
+        totalPages.value = 1;
+      } catch (fallbackErr) {
+        console.error("Fallback fetch also failed:", fallbackErr);
+      }
+    } finally {
+      loading.value = false;
+    }
+  };
 
   // Load initial tasks from the backend - only run once when component mounts
   effect(() => {
     if (mounted.value) return; // Prevent re-running
+    mounted.value = true;
+    loadTasks();
+  });
 
-    const loadTasks = async () => {
-      try {
-        loading.value = true;
-        error.value = "";
-        const fetchedTasks = await fetchTasks();
-        tasks.value = fetchedTasks;
-      } catch (err) {
-        console.error("Failed to load tasks:", err);
-        error.value = "Failed to load tasks. Please try again.";
-      } finally {
-        loading.value = false;
-        mounted.value = true; // Mark as mounted
-      }
-    };
-
+  // Reload tasks when query parameters change (search, pagination, etc.)
+  effect(() => {
+    if (!mounted.value) return; // Skip initial load
     loadTasks();
   });
 
@@ -126,6 +190,50 @@ export default function TodoApp() {
     }
   };
 
+  // Search handlers with debouncing
+  const handleSearchChange = (newSearchParams: SearchParams) => {
+    searchParams.value = newSearchParams;
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Debounce the search query, but apply status filter immediately
+    if (newSearchParams.status !== queryParams.value.status) {
+      // Status filter changes immediately
+      queryParams.value = {
+        ...queryParams.value,
+        status: newSearchParams.status || "all",
+        q: newSearchParams.q || "",
+        page: 1 // Reset to first page
+      };
+    } else {
+      // Debounce text search
+      searchTimeout = setTimeout(() => {
+        queryParams.value = {
+          ...queryParams.value,
+          q: newSearchParams.q || "",
+          page: 1 // Reset to first page
+        };
+      }, 300); // 300ms debounce
+    }
+  };
+
+  const handleClearSearch = () => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    searchParams.value = { q: "", status: "all" };
+    queryParams.value = {
+      ...queryParams.value,
+      q: "",
+      status: "all",
+      page: 1
+    };
+  };
+
   return (
     <div class="bg-white shadow-xl rounded-lg p-6 md:p-8">
       {error.value && (
@@ -139,7 +247,29 @@ export default function TodoApp() {
         onAddTask={handleAddTask}
       />
 
+      {/* Search Form */}
       <div class="mt-8">
+        <SearchForm
+          searchParams={searchParams.value}
+          onSearchChange={handleSearchChange}
+          onClearSearch={handleClearSearch}
+        />
+      </div>
+
+      {/* Task Results */}
+      <div class="mt-6">
+        {/* Results Summary */}
+        {!loading.value && (
+          <div class="mb-4 text-sm text-gray-600">
+            {totalTasks.value > 0 
+              ? `Showing ${tasks.value.length} of ${totalTasks.value} tasks`
+              : searchParams.value.q || (searchParams.value.status && searchParams.value.status !== "all")
+                ? "No tasks match your search criteria"
+                : "No tasks yet"
+            }
+          </div>
+        )}
+
         {loading.value
           ? (
             <div class="text-center py-8">

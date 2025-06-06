@@ -4,10 +4,15 @@ import { define } from "../../../utils.ts";
 const BACKEND_API = "http://backend:3000";
 
 export const handler = define.handlers({
-  // GET /api/tasks - List all tasks
-  async GET(_ctx) {
+  // GET /api/tasks - List all tasks with pagination support
+  async GET(ctx) {
     try {
-      const response = await fetch(`${BACKEND_API}/tasks`);
+      const url = new URL(ctx.req.url);
+      const queryParams = url.searchParams;
+      
+      // Forward pagination and other query parameters to backend
+      const backendUrl = `${BACKEND_API}/tasks?${queryParams.toString()}`;
+      const response = await fetch(backendUrl);
       const data = await response.json();
 
       return new Response(JSON.stringify(data), {

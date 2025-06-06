@@ -1,0 +1,32 @@
+version: '3.8'
+
+# Development overrides for hot-reloading
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development  # Use the development stage
+    volumes:
+      # Mount source code for hot reloading
+      - ./backend/src:/app/src
+      - ./backend/Cargo.toml:/app/Cargo.toml
+      - ./backend/Cargo.lock:/app/Cargo.lock
+      # Use a named volume for target directory to persist builds
+      - backend_target:/app/target
+    environment:
+      RUST_LOG: debug,backend=trace,tower_http=debug
+      # Enable cargo watch polling for file changes in containers
+      CARGO_WATCH_POLL: "true"
+      DATABASE_URL: mysql://taskuser:taskpassword@mysql:3306/tasks_db
+      APP_BIND_ADDRESS: 0.0.0.0:3000
+
+  frontend:
+    # Frontend already has hot-reloading configured in base compose file
+    environment:
+      # Enable Deno's watch mode
+      DENO_WATCH: "true"
+
+volumes:
+  # Persist Rust compilation cache between container restarts
+  backend_target:

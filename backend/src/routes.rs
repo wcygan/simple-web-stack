@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -11,9 +11,14 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::{
+    auth::{hash_password, verify_password, generate_session_token, hash_session_token},
     db::AppState,
     errors::AppError,
-    models::{CreateTaskPayload, Task, UpdateTaskPayload},
+    models::{
+        AuthResponse, CreateTaskPayload, LoginPayload, PaginatedResponse, PaginationMeta, 
+        RegisterPayload, Task, TaskQueryParams, UpdateTaskPayload, UserResponse
+    },
+    middleware::AuthUser,
 };
 
 /// Maximum allowed title length
@@ -45,6 +50,7 @@ fn row_to_task(row: &MySqlRow) -> Result<Task, sqlx::Error> {
         id: Uuid::parse_str(row.try_get("id")?).unwrap(),
         title: row.try_get("title")?,
         completed: row.try_get::<i8, _>("completed")? != 0,
+        user_id: Uuid::parse_str(row.try_get("user_id")?).unwrap(),
         created_at: row.try_get("created_at")?,
         updated_at: row.try_get("updated_at")?,
     })
@@ -70,19 +76,20 @@ pub async fn create_task(
     // Insert the task into the database
     sqlx::query(
         r#"
-        INSERT INTO tasks (id, title, completed)
-        VALUES (?, ?, FALSE)
+        INSERT INTO tasks (id, title, completed, user_id)
+        VALUES (?, ?, FALSE, ?)
         "#,
     )
     .bind(task_id.to_string())
     .bind(&validated_title)
+    .bind("00000000-0000-0000-0000-000000000000")
     .execute(&app_state.pool)
     .await?;
 
     // Fetch the created task
     let row = sqlx::query(
         r#"
-        SELECT id, title, completed, created_at, updated_at
+        SELECT id, title, completed, user_id, created_at, updated_at
         FROM tasks
         WHERE id = ?
         "#,
@@ -106,7 +113,7 @@ pub async fn get_task(
 
     let row = sqlx::query(
         r#"
-        SELECT id, title, completed, created_at, updated_at
+        SELECT id, title, completed, user_id, created_at, updated_at
         FROM tasks
         WHERE id = ?
         "#,
@@ -120,13 +127,64 @@ pub async fn get_task(
     Ok(Json(task))
 }
 
-/// List all tasks
-pub async fn list_tasks(State(app_state): State<AppState>) -> Result<Json<Vec<Task>>, AppError> {
-    tracing::info!("Listing all tasks");
+/// List all tasks with pagination and search support
+pub async fn list_tasks(
+    State(app_state): State<AppState>,
+    Query(mut query_params): Query<TaskQueryParams>,
+) -> Result<Json<PaginatedResponse<Task>>, AppError> {
+    tracing::info!("Listing tasks with search/pagination: page={}, page_size={}, q={:?}, status={:?}", 
+        query_params.pagination.page, 
+        query_params.pagination.page_size,
+        query_params.search.q,
+        query_params.search.status
+    );
+
+    // Validate and adjust pagination parameters
+    query_params.pagination.validate();
+
+    // Get total count with search filters
+    let total_items = crate::db::count_tasks_with_search(
+        &app_state.pool,
+        query_params.search.q.as_deref(),
+        query_params.search.status.as_deref(),
+    ).await?;
+
+    // Get paginated tasks with search filters
+    let tasks = crate::db::get_paginated_tasks_with_search(
+        &app_state.pool,
+        query_params.pagination.offset(),
+        query_params.pagination.limit(),
+        query_params.pagination.sort_by.as_deref(),
+        query_params.pagination.sort_order.as_ref(),
+        query_params.search.q.as_deref(),
+        query_params.search.status.as_deref(),
+    ).await?;
+
+    // Create pagination metadata
+    let pagination = PaginationMeta::new(query_params.pagination.page, query_params.pagination.page_size, total_items);
+
+    let response = PaginatedResponse {
+        data: tasks,
+        pagination,
+    };
+
+    tracing::info!("Found {} tasks (total: {}, page: {}/{})", 
+        response.data.len(), 
+        total_items, 
+        query_params.pagination.page, 
+        response.pagination.total_pages
+    );
+
+    Ok(Json(response))
+}
+
+/// List all tasks (legacy endpoint for backwards compatibility)
+pub async fn list_all_tasks(State(app_state): State<AppState>) -> Result<Json<Vec<Task>>, AppError> {
+    tracing::info!("Listing all tasks (legacy endpoint)");
 
     let rows = sqlx::query(
         r#"
-        SELECT id, title, completed, created_at, updated_at
+        SELECT id, title, completed, user_id, created_at, updated_at
         FROM tasks
         ORDER BY created_at DESC
         "#,
@@ -202,7 +260,7 @@ pub async fn update_task(
     // Fetch the updated task
     let row = sqlx::query(
         r#"
-        SELECT id, title, completed, created_at, updated_at
+        SELECT id, title, completed, user_id, created_at, updated_at
         FROM tasks
         WHERE id = ?
         "#,
@@ -237,9 +295,158 @@ pub async fn delete_task(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Register a new user
+pub async fn register(
+    State(app_state): State<AppState>,
+    Json(payload): Json<RegisterPayload>,
+) -> Result<Json<AuthResponse>, AppError> {
+    tracing::info!("Registering new user with email: {}", payload.email);
+
+    // Validate email format (basic validation)
+    if !payload.email.contains('@') || payload.email.len() > 255 {
+        return Err(AppError::ValidationError("Invalid email format".to_string()));
+    }
+
+    // Validate password strength
+    if payload.password.len() < 8 {
+        return Err(AppError::ValidationError(
+            "Password must be at least 8 characters long".to_string(),
+        ));
+    }
+
+    // Check if user already exists
+    let existing_user = crate::db::get_user_by_email(&app_state.pool, &payload.email).await?;
+    if existing_user.is_some() {
+        return Err(AppError::ValidationError(
+            "User with this email already exists".to_string(),
+        ));
+    }
+
+    // Hash the password
+    let password_hash = hash_password(&payload.password)
+        .map_err(|_| AppError::InternalServerError("Failed to hash password".to_string()))?;
+
+    // Create the user
+    let user_id = Uuid::new_v4();
+    let user = crate::db::create_user(&app_state.pool, user_id, &payload.email, &password_hash).await?;
+
+    // Create a session
+    let session_id = Uuid::new_v4();
+    let session_token = generate_session_token();
+    let token_hash = hash_session_token(&session_token);
+    let expires_at = chrono::Utc::now() + app_state.auth_service.get_token_expiry_duration();
+
+    let _session = crate::db::create_session(
+        &app_state.pool,
+        session_id,
+        user_id,
+        &token_hash,
+        expires_at,
+    ).await?;
+
+    // Generate JWT
+    let jwt_token = app_state
+        .auth_service
+        .generate_token(user_id, session_id)
+        .map_err(|_| AppError::InternalServerError("Failed to generate token".to_string()))?;
+
+    tracing::info!("User registered successfully");
+    Ok(Json(AuthResponse {
+        token: jwt_token,
+        user: UserResponse::from(user),
+    }))
+}
+
+/// Login a user
+pub async fn login(
+    State(app_state): State<AppState>,
+    Json(payload): Json<LoginPayload>,
+) -> Result<Json<AuthResponse>, AppError> {
+    tracing::info!("User login attempt for email: {}", payload.email);
+
+    // Get user by email
+    let user = crate::db::get_user_by_email(&app_state.pool, &payload.email)
+        .await?
+        .ok_or(AppError::Unauthorized("Invalid credentials".to_string()))?;
+
+    // Verify password
+    let password_valid = verify_password(&payload.password, &user.password_hash)
+        .map_err(|_| AppError::InternalServerError("Failed to verify password".to_string()))?;
+
+    if !password_valid {
+        return Err(AppError::Unauthorized("Invalid credentials".to_string()));
+    }
+
+    // Create a new session
+    let session_id = Uuid::new_v4();
+    let session_token = generate_session_token();
+    let token_hash = hash_session_token(&session_token);
+    let expires_at = chrono::Utc::now() + app_state.auth_service.get_token_expiry_duration();
+
+    let _session = crate::db::create_session(
+        &app_state.pool,
+        session_id,
+        user.id,
+        &token_hash,
+        expires_at,
+    ).await?;
+
+    // Generate JWT
+    let jwt_token = app_state
+        .auth_service
+        .generate_token(user.id, session_id)
+        .map_err(|_| AppError::InternalServerError("Failed to generate token".to_string()))?;
+
+    tracing::info!("User logged in successfully");
+    Ok(Json(AuthResponse {
+        token: jwt_token,
+        user: UserResponse::from(user),
+    }))
+}
+
+/// Logout a user (requires auth in real implementation)
+pub async fn logout(
+    State(_app_state): State<AppState>,
+) -> Result<StatusCode, AppError> {
+    tracing::info!("User logout endpoint called");
+
+    // TODO: Extract user from auth middleware and delete session
+    // crate::db::delete_session(&app_state.pool, auth_user.session_id).await?;
+
+    tracing::info!("User logged out successfully");
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Get current user profile (requires auth in real implementation)
+pub async fn get_profile(
+    State(_app_state): State<AppState>,
+) -> Result<Json<UserResponse>, AppError> {
+    tracing::info!("Get profile endpoint called");
+
+    // TODO: Extract user from auth middleware and return user data
+    // let user = crate::db::get_user_by_id(&app_state.pool, auth_user.user_id).await?;
+    // Ok(Json(UserResponse::from(user)))
+    
+    Err(AppError::Unauthorized("Authentication middleware not fully implemented".to_string()))
+}
+
 /// Create task routes
 pub fn task_routes() -> Router<AppState> {
     Router::new()
         .route("/", post(create_task).get(list_tasks))
         .route("/{id}", get(get_task).put(update_task).delete(delete_task))
+}
+
+/// Create public auth routes (no authentication required)
+pub fn public_auth_routes() -> Router<AppState> {
+    Router::new()
+        .route("/register", post(register))
+        .route("/login", post(login))
+}
+
+/// Create protected auth routes (authentication required)
+pub fn protected_auth_routes() -> Router<AppState> {
+    Router::new()
+        .route("/logout", post(logout))
+        .route("/profile", get(get_profile))
 }

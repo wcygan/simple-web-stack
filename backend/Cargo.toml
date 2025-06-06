@@ -31,6 +31,7 @@ jsonwebtoken = "9.3.0"
 bcrypt = "0.16.0"
 rand = "0.8.5"
 async-trait = "0.1.83"
+serde_with = "3.12.0"
 
 [dev-dependencies]
 reqwest = { version = "0.12.18", features = ["json"] }
@@ -38,3 +39,4 @@ testcontainers = "0.24"
 testcontainers-modules = { version = "0.12", features = ["mysql"] }
 once_cell = "1"
 futures = "0.3"
+serde_urlencoded = "0.7.1"

@@ -200,6 +200,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serde_urlencoded",
+ "serde_with",
  "sqlx",
  "testcontainers",
  "testcontainers-modules",

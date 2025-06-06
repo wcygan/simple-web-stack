@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -29,11 +30,14 @@ pub struct UpdateTaskPayload {
 }
 
 // Pagination parameters for listing tasks
+#[serde_as]
 #[derive(Debug, Deserialize)]
 pub struct PaginationParams {
     #[serde(default = "default_page")]
+    #[serde_as(as = "DisplayFromStr")]
     pub page: u32,
     #[serde(default = "default_page_size")]
+    #[serde_as(as = "DisplayFromStr")]
     pub page_size: u32,
     pub sort_by: Option<String>,
     pub sort_order: Option<SortOrder>,

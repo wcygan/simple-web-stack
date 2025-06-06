@@ -96,9 +96,13 @@ export default function TodoApp() {
   
   // Search and pagination state
   const searchParams = useSignal<SearchParams>({ q: "", status: "all" });
-  const queryParams = useSignal<TaskQueryParams>({});
+  const queryParams = useSignal<TaskQueryParams>({ page: 1, page_size: 10 });
   const totalTasks = useSignal(0);
   const totalPages = useSignal(1);
+  const currentPage = useSignal(1);
+  
+  // Ref to prevent infinite loops
+  const isLoadingRef = useRef(false);
   
   // Debounce timeout for search
   let searchTimeout: number | undefined;
@@ -106,6 +110,12 @@ export default function TodoApp() {
   // Load tasks with search/pagination - runs when queryParams change
   const loadTasks = async () => {
     console.log("loadTasks called with params:", queryParams.value);
+    if (isLoadingRef.current) {
+      console.log("Already loading, skipping...");
+      return;
+    }
+    
+    isLoadingRef.current = true;
     try {
       loading.value = true;
       error.value = "";
@@ -113,6 +123,7 @@ export default function TodoApp() {
       tasks.value = response.data;
       totalTasks.value = response.pagination.total_items || response.pagination.total || 0;
       totalPages.value = response.pagination.total_pages;
+      currentPage.value = response.pagination.page;
     } catch (err) {
       console.error("Failed to load tasks:", err);
       error.value = "Failed to load tasks. Please try again.";
@@ -128,6 +139,7 @@ export default function TodoApp() {
       }
     } finally {
       loading.value = false;
+      isLoadingRef.current = false;
     }
   };
 
@@ -138,8 +150,20 @@ export default function TodoApp() {
   }, []); // Empty dependency array - only run once on mount
 
   // Track query parameter changes and reload tasks
-  // TEMPORARILY DISABLED to stop infinite loop
-  // TODO: Fix the effect tracking after resolving backend type issues
+  // Store previous params to detect actual changes
+  const prevParamsRef = useRef<string>("");
+  
+  // Track query parameter changes and reload tasks
+  effect(() => {
+    if (mounted.value) {
+      const paramsStr = JSON.stringify(queryParams.value);
+      if (paramsStr !== prevParamsRef.current) {
+        prevParamsRef.current = paramsStr;
+        console.log("Query params changed:", queryParams.value);
+        loadTasks();
+      }
+    }
+  });
 
   // Cleanup search timeout on unmount
   useEffect(() => {
@@ -238,6 +262,25 @@ export default function TodoApp() {
     };
   };
 
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (currentPage.value < totalPages.value) {
+      queryParams.value = {
+        ...queryParams.value,
+        page: currentPage.value + 1
+      };
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage.value > 1) {
+      queryParams.value = {
+        ...queryParams.value,
+        page: currentPage.value - 1
+      };
+    }
+  };
+
   return (
     <div class="bg-white shadow-xl rounded-lg p-6 md:p-8">
       {error.value && (
@@ -287,6 +330,39 @@ export default function TodoApp() {
               onDeleteTask={handleDeleteTask}
             />
           )}
+          
+        {/* Pagination Controls */}
+        {!loading.value && totalPages.value > 1 && (
+          <div class="mt-6 flex justify-between items-center">
+            <button
+              onClick={handlePreviousPage}
+              disabled={currentPage.value === 1}
+              class={`px-4 py-2 rounded ${
+                currentPage.value === 1
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              }`}
+            >
+              Back
+            </button>
+            
+            <span class="text-gray-600">
+              Page {currentPage.value} of {totalPages.value}
+            </span>
+            
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage.value === totalPages.value}
+              class={`px-4 py-2 rounded ${
+                currentPage.value === totalPages.value
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

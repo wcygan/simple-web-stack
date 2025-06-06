@@ -1,4 +1,5 @@
 import { effect, useSignal } from "@preact/signals";
+import { useEffect, useRef } from "preact/hooks";
 import { type Task, type SearchParams, type TaskQueryParams, type PaginatedResponse } from "../types.ts";
 import AddTaskFormIsland from "./AddTaskFormIsland.tsx";
 import TaskList from "../components/TaskList.tsx";
@@ -135,18 +136,40 @@ export default function TodoApp() {
     }
   };
 
-  // Load initial tasks from the backend - only run once when component mounts
-  effect(() => {
-    if (mounted.value) return; // Prevent re-running
+  // Load tasks on mount
+  useEffect(() => {
     mounted.value = true;
     loadTasks();
+  }, []); // Empty dependency array - only run once on mount
+
+  // Track query parameter changes and reload tasks
+  // Use a ref to track if this is the first run
+  const isFirstRun = useRef(true);
+  
+  effect(() => {
+    // Access the signal values to create dependencies
+    const { page, page_size, q, status } = queryParams.value;
+    
+    // Skip the first effect run to avoid double-loading on mount
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
+    
+    // Only load if component is mounted
+    if (mounted.value) {
+      loadTasks();
+    }
   });
 
-  // Reload tasks when query parameters change (search, pagination, etc.)
-  effect(() => {
-    if (!mounted.value) return; // Skip initial load
-    loadTasks();
-  });
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, []);
 
   const handleAddTask = async (title: string) => {
     if (title.trim() === "") {
@@ -156,8 +179,9 @@ export default function TodoApp() {
     try {
       error.value = "";
       const newTask = await createTask(title.trim());
-      tasks.value = [newTask, ...tasks.value]; // Add to beginning to match backend ordering (newest first)
       newTaskTitle.value = "";
+      // Reload tasks to ensure consistency with backend state and pagination
+      await loadTasks();
     } catch (err) {
       console.error("Failed to create task:", err);
       error.value = "Failed to create task. Please try again.";
@@ -183,7 +207,8 @@ export default function TodoApp() {
     try {
       error.value = "";
       await deleteTask(id);
-      tasks.value = tasks.value.filter((task) => task.id !== id);
+      // Reload tasks to ensure consistency with backend state and pagination
+      await loadTasks();
     } catch (err) {
       console.error("Failed to delete task:", err);
       error.value = "Failed to delete task. Please try again.";
@@ -272,7 +297,7 @@ export default function TodoApp() {
 
         {loading.value
           ? (
-            <div class="text-center py-8">
+            <div class="text-center py-8" data-testid="loading">
               <div class="text-gray-500">Loading tasks...</div>
             </div>
           )

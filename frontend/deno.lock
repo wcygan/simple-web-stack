@@ -7,6 +7,7 @@
     "jsr:@luca/esbuild-deno-loader@0.11": "0.11.1",
     "jsr:@std/assert@*": "0.221.0",
     "jsr:@std/assert@0.221": "0.221.0",
+    "jsr:@std/assert@1": "1.0.13",
     "jsr:@std/bytes@^1.0.2": "1.0.6",
     "jsr:@std/crypto@1": "1.0.5",
     "jsr:@std/datetime@~0.225.2": "0.225.5",
@@ -17,6 +18,7 @@
     "jsr:@std/fs@1": "1.0.17",
     "jsr:@std/html@1": "1.0.4",
     "jsr:@std/http@^1.0.15": "1.0.17",
+    "jsr:@std/internal@^1.0.6": "1.0.7",
     "jsr:@std/json@^1.0.2": "1.0.2",
     "jsr:@std/jsonc@1": "1.0.2",
     "jsr:@std/media-types@1": "1.1.0",
@@ -28,6 +30,7 @@
     "npm:@opentelemetry/api@^1.9.0": "1.9.0",
     "npm:@preact/signals@^2.0.4": "2.0.4_preact@10.26.6",
     "npm:@testing-library/preact@*": "3.2.4_preact@10.26.6",
+    "npm:@testing-library/preact@^3.2.4": "3.2.4_preact@10.26.6",
     "npm:autoprefixer@10.4.17": "10.4.17_postcss@8.4.35",
     "npm:cssnano@6.0.3": "6.0.3_postcss@8.4.35",
     "npm:esbuild-wasm@0.23.1": "0.23.1",
@@ -88,6 +91,12 @@
         "jsr:@std/fmt@0.221"
       ]
     },
+    "@std/assert@1.0.13": {
+      "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
     "@std/bytes@1.0.6": {
       "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
     },
@@ -117,6 +126,9 @@
     },
     "@std/http@1.0.17": {
       "integrity": "98aec8ab4080d95c21f731e3008f69c29c5012d12f1b4e553f85935db601569f"
+    },
+    "@std/internal@1.0.7": {
+      "integrity": "39eeb5265190a7bc5d5591c9ff019490bd1f2c3907c044a11b0d545796158a0f"
     },
     "@std/json@1.0.2": {
       "integrity": "d9e5497801c15fb679f55a2c01c7794ad7a5dfda4dd1bebab5e409cb5e0d34d4"
@@ -1826,7 +1838,9 @@
     "dependencies": [
       "jsr:@fresh/core@^2.0.0-alpha.34",
       "jsr:@fresh/plugin-tailwind@^0.0.1-alpha.7",
+      "jsr:@std/assert@1",
       "npm:@preact/signals@^2.0.4",
+      "npm:@testing-library/preact@^3.2.4",
       "npm:nanoid@5.0.7",
       "npm:preact@^10.26.6",
       "npm:tailwindcss@^3.4.3"

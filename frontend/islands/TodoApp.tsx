@@ -96,14 +96,7 @@ export default function TodoApp() {
   
   // Search and pagination state
   const searchParams = useSignal<SearchParams>({ q: "", status: "all" });
-  const queryParams = useSignal<TaskQueryParams>({ 
-    page: 1, 
-    page_size: 20, 
-    sort_by: "created_at", 
-    sort_order: "desc",
-    q: "",
-    status: "all"
-  });
+  const queryParams = useSignal<TaskQueryParams>({});
   const totalTasks = useSignal(0);
   const totalPages = useSignal(1);
   
@@ -112,6 +105,7 @@ export default function TodoApp() {
 
   // Load tasks with search/pagination - runs when queryParams change
   const loadTasks = async () => {
+    console.log("loadTasks called with params:", queryParams.value);
     try {
       loading.value = true;
       error.value = "";
@@ -124,6 +118,7 @@ export default function TodoApp() {
       error.value = "Failed to load tasks. Please try again.";
       // If paginated API fails, try legacy endpoint as fallback
       try {
+        console.log("Trying fallback fetch...");
         const fallbackTasks = await fetchAllTasks();
         tasks.value = fallbackTasks;
         totalTasks.value = fallbackTasks.length;
@@ -143,24 +138,8 @@ export default function TodoApp() {
   }, []); // Empty dependency array - only run once on mount
 
   // Track query parameter changes and reload tasks
-  // Use a ref to track if this is the first run
-  const isFirstRun = useRef(true);
-  
-  effect(() => {
-    // Access the signal values to create dependencies
-    const { page, page_size, q, status } = queryParams.value;
-    
-    // Skip the first effect run to avoid double-loading on mount
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      return;
-    }
-    
-    // Only load if component is mounted
-    if (mounted.value) {
-      loadTasks();
-    }
-  });
+  // TEMPORARILY DISABLED to stop infinite loop
+  // TODO: Fix the effect tracking after resolving backend type issues
 
   // Cleanup search timeout on unmount
   useEffect(() => {

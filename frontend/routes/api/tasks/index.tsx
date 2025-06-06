@@ -13,6 +13,23 @@ export const handler = define.handlers({
       // Forward pagination and other query parameters to backend
       const backendUrl = `${BACKEND_API}/tasks?${queryParams.toString()}`;
       const response = await fetch(backendUrl);
+      
+      // Check if response is ok and has JSON content
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Backend returned error ${response.status}: ${errorText}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Backend error: ${response.statusText}`,
+            details: errorText 
+          }),
+          {
+            status: response.status,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      
       const data = await response.json();
 
       return new Response(JSON.stringify(data), {
@@ -45,6 +62,22 @@ export const handler = define.handlers({
         },
         body,
       });
+
+      // Check if response is ok
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Backend returned error ${response.status}: ${errorText}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Backend error: ${response.statusText}`,
+            details: errorText 
+          }),
+          {
+            status: response.status,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
 
       const data = await response.json();
 

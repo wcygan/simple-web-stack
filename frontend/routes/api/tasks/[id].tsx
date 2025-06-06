@@ -9,6 +9,22 @@ export const handler = define.handlers({
     try {
       const id = ctx.params.id;
       const response = await fetch(`${BACKEND_API}/tasks/${id}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Backend returned error ${response.status}: ${errorText}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Backend error: ${response.statusText}`,
+            details: errorText 
+          }),
+          {
+            status: response.status,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      
       const data = await response.json();
 
       return new Response(JSON.stringify(data), {
@@ -43,6 +59,21 @@ export const handler = define.handlers({
         body,
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Backend returned error ${response.status}: ${errorText}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Backend error: ${response.statusText}`,
+            details: errorText 
+          }),
+          {
+            status: response.status,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       const data = await response.json();
 
       return new Response(JSON.stringify(data), {
@@ -70,6 +101,21 @@ export const handler = define.handlers({
       const response = await fetch(`${BACKEND_API}/tasks/${id}`, {
         method: "DELETE",
       });
+
+      if (!response.ok && response.status !== 204) {
+        const errorText = await response.text();
+        console.error(`Backend returned error ${response.status}: ${errorText}`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Backend error: ${response.statusText}`,
+            details: errorText 
+          }),
+          {
+            status: response.status,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
 
       // For DELETE, backend returns 204 No Content with no body
       return new Response(null, {

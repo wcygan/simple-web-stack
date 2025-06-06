@@ -2,12 +2,12 @@
 
 // Test script to verify the infinite loop issue is fixed
 
-const API_URL = "http://localhost:8001/api/tasks";
+const API_URL = "http://localhost:8000/api/tasks";
 let requestCount = 0;
 const startTime = Date.now();
 
 // Mock server to count requests
-const server = Deno.serve({ port: 8001 }, (req) => {
+const server = Deno.serve({ port: 8000 }, (req) => {
   const url = new URL(req.url);
   
   if (url.pathname === "/api/tasks") {
@@ -34,7 +34,7 @@ const server = Deno.serve({ port: 8001 }, (req) => {
   return new Response("Not found", { status: 404 });
 });
 
-console.log("Test server running on http://localhost:8001");
+console.log("Test server running on http://localhost:8000");
 console.log("Monitoring API requests for 5 seconds...");
 
 // Run for 5 seconds then report

@@ -12,10 +12,6 @@ This project demonstrates a todo list application built with Deno Fresh and Axum
 
 ## Prerequisites
 
-
-
-
-
 - [Rust](https://www.rust-lang.org/)
 - [Deno](https://deno.com/runtime)
 - [Docker](https://www.docker.com/) (or [Orbstack](https://orbstack.dev/), or [Podman](https://podman.io/))
